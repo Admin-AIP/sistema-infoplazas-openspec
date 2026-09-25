@@ -1,0 +1,47 @@
+project_name: SisAIP
+project_full_name: ADA Nova Plus / SisAIP
+artifact_store: both
+strict_tdd: true
+execution_mode: auto
+delivery_strategy: ask-on-risk
+review_budget_changed_lines: 400
+
+stack:
+  dinamizador:
+    path: Soft_Dinamizador
+    repository: independent
+    current_local_integration_branch: master
+    current_local_head: 7e320970b29286afdc61fc4409764ea90574930f
+    integration_status: PR-02_integrated
+    framework: Electron 33 + React 18 + Vite 6 + TypeScript 5.7
+    database: better-sqlite3 (SQLite)
+    state_management: Zustand 4.5
+    test_runner: null
+  usuario_pc:
+    path: Soft_Usuario_PC/agente-infoplaza
+    repository: independent
+    default_integration_branch: master
+    framework: Go 1.22 + Wails v2 (2.12.0) + React 18
+    frontend_test_runner: npm test (vitest run)
+    backend_test_runner: go test ./...
+  pagina_web_nacional:
+    path: null
+    status: planned_future_phase
+
+normative_hierarchy:
+  1: docs/DINAMIZADOR - REQUERIMIENTOS PARA DESARROLLO.pdf
+  2: docs/USUARIO PC - REQUERIMIENTOS PARA DESARROLLO.pdf
+  3: docs/REQUERIMIENTOS PARA DESARROLLO.docx
+  4: docs/GUARDRAILS_DE_INTEGRACION_ADA_NOVA_PLUS.md
+
+guardrails:
+  code_evolution: "KEEP > EXTEND > REFACTOR > REPLACE > ADD"
+  offline_first: mandatory
+  identity: internal stable UUIDs mandatory (no cédula/MAC as technical PKs)
+  communication: >-
+    direct LAN local operation; mDNS may support discovery, but trusted
+    privileged Dinamizador↔Usuario PC traffic requires WSS over TLS 1.3
+    with mutual TLS; legacy parser compatibility grants no authorization
+  repository_model: independent_repositories_no_common_main
+  cross_repository_dependencies: contract_dependencies_not_git_ancestry
+  unspecified_features: mark as OPEN REQUIREMENT
