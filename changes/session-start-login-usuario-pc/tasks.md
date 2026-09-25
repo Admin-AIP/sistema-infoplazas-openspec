@@ -48,6 +48,69 @@ During future staging, newly created `*_test.go` files may require force-add by 
 
 PR-04C may be planned only after these requirements are approved. It must be resolved before policy-dependent admission/autonomous gates, particularly PR-13 and PR-14 where applicable; it does not block PR-05A1, PR-05A2, or PR-05B1a1.
 
+### OPEN REQUIREMENT
+1
+ CLOCK PLAUSIBILITY POLICY
+
+**Status:** OPEN / unresolved
+
+**Context:** PR-08B1a1 implements pure certificate notBefore/notAfter temporal validation against an explicit `Date` input. The approved architecture requires that an implausible or untrusted local clock MUST prevent the applicable future transition to ACTIVE and MUST NOT bypass temporal validation.
+
+**Undefined:**
+- Concrete plausibility criteria (acceptable drift thresholds, reference sources)
+- Offline clock confidence strategy (when no network time is available)
+- Behavior after CMOS battery failure / significant time rollback
+- When checks occur: pre-connection vs periodic vs reconnect
+- Behavior for already-ACTIVE connections when clock becomes implausible
+- Audit semantics for implausible clock detections
+- Whether policy is identical on both Dinamizador and Usuario PC endpoints
+
+**Does NOT block:**
+- PR-08B1a1 (COMPLETE / CLOSED)
+ pure temporal validation with explicit Date
+- PR-08B1a2 (NEXT)
+ transport-only TLS/WSS runtime development, provided it does NOT introduce product authorization or ACTIVE transition that depends on trusted clock
+
+**MUST be resolved before:**
+- Composition that enables behavior depending on trusted clock plausibility
+- Production deployment of ACTIVE secure-link transitions
+- Any implementation that would silently accept temporal validation with an implausible local clock
+
+**Responsible:** Product / architecture decision pending
+
+### OPEN REQUIREMENT
+2
+ X.509 CERTIFICATE IDENTITY ENCODING
+
+**Status:** OPEN / unresolved
+
+**Context:** PR-08B1a1 validates certificate temporal boundaries but does NOT extract identity fields. The secure-link architecture requires authenticating installations and stations using certificate-embedded identity, but the field encoding is undefined.
+
+**Undefined:**
+- Which X.509 field/extension carries `installationId` (CN? O? OU? SAN? Custom extension?)
+- Which X.509 field/extension carries `stationId`
+- Whether `centerId` is certificate-carried or derived from installation
+- Format (numeric? UUID? string?)
+- Canonicalization rules
+- Uniqueness guarantees
+- Parser/extraction implementation
+- Behavior for malformed / missing / ambiguous identity fields
+- Mismatch semantics (certificate identity vs expected identity)
+
+**Does NOT block:**
+- PR-08B1a1 (COMPLETE / CLOSED)
+ temporal validation only
+- PR-08B1a2 (NEXT)
+ transport-level TLS/mTLS runtime, provided its scope remains limited to cryptographic path validation without identity-dependent authorization
+
+**MUST be resolved before:**
+- PR-08B1b (PLANNED)
+ installation / station / center authorization
+- Any implementation performing identity-dependent access control
+- Production deployment of identity-based deny/allow registries
+
+**Responsible:** Certificate provisioning / PKI design decision pending
+
 ## Delivery contract
 
 The following are **implementation phases, not PR boundaries**: Phase 1 foundation and persistence (PRs 01–06), Phase 2 secure transport and the single Dinamizador aggregate (PRs 07–11), Phase 3 station login and modalities (PRs 12–14), and Phase 4 recovery and rollout proof (PRs 15–16). Disability profile/catalog work is preserved as a separate follow-up in the user registration / user profile / demographic catalogs domain, not as a session-chain PR.
@@ -67,12 +130,12 @@ Usuario PC repository mainline:
 PR-01 ─► PR-03 ─► PR-04A ─► PR-04B1 ─► PR-04B2 ─► PR-05A1 ─► PR-05A2 ─► PR-05B1a1 ─► PR-05B1a2a ─► PR-05B1a2b ─► PR-05B1b1 ─► PR-05B1b2 ─► PR-05B2 ─► PR-06 ─► PR-07A COMPLETE ─► PR-07B COMPLETE/integrated ─► PR-08U1 ─► PR-08U2 ─► PR-12 ─► PR-13 ─► PR-14 ─► PR-15 ─► PR-16
 PR-04C (BLOCKED / DEFERRED PENDING OPEN REQUIREMENTS) ─► policy-dependent admission/autonomous gates: PR-13 / PR-14, where applicable
 
-Dinamizador repository local integration branch `master`/`origin/master` at `efa8c84eecdc116d6ff4a455fd8d82ecdd529d20`:
-PR-02 integrated ─► PR-08A1a COMPLETE ─► PR-08A1b COMPLETE ─► PR-08A2a COMPLETE/CLOSED ─► PR-08A2b COMPLETE/CLOSED ─► PR-08A2c NOT STARTED/preflight-ready ─► PR-08B1 ─► PR-08B2 ─► PR-09 ─► PR-10 ─► PR-11 ─► PR-16
+Dinamizador repository local integration branch `master`/`origin/master` at `de6669ad2e511ec8fd51e5db6a29fdcf1583e944`:
+PR-02 integrated ─► PR-08A1a COMPLETE ─► PR-08A1b COMPLETE ─► PR-08A2a COMPLETE/CLOSED ─► PR-08A2b COMPLETE/CLOSED ─► PR-08A2c1 COMPLETE/CLOSED ─► PR-08A2c2 COMPLETE/CLOSED ─► PR-08B1a1 COMPLETE/CLOSED ─► PR-08B1a2 NEXT ─► PR-08B1b PLANNED ─► PR-08B1c PLANNED ─► PR-08B2 ─► PR-09 ─► PR-10 ─► PR-11 ─► PR-16
 
 Cross-repository contract dependencies, not Git ancestry:
-PR-08A1 is COMPLETE as A1a/A1b. PR-08A2a/A2b are COMPLETE/CLOSED and integrated; A2b is integrated at `efa8c84eecdc116d6ff4a455fd8d82ecdd529d20`. A2c depends on those integrated contracts and the integrated PR-07B LAN v2 contract; its finite vocabulary is approved in the secure-link specification, it is NOT STARTED and preflight-ready, and no A2c OPEN REQUIREMENT remains. Future bigint/link-identifier JSON/wire mapping belongs to later transport integration and does not block A2c.
-PR-08B1 depends on verified/integrated A1 plus A2a/A2b/A2c contracts; B2 depends on B1. PR-08U1 depends on the A1/A2 contract freeze and acceptance of the protected-storage spike, may proceed in parallel with B, and is followed by U2.
+PR-08A1 is COMPLETE as A1a/A1b. PR-08A2 is COMPLETE/CLOSED as A2a/A2b/A2c1/A2c2; A2c2 (privileged eligibility) is integrated at `6a51a1409ee52368d938b0eaead5bfcce479d63c`. Future bigint/link-identifier JSON/wire mapping belongs to later transport integration.
+PR-08B1 is IN PROGRESS as B1a1 COMPLETE/CLOSED (certificate temporal validation at `de6669ad2e511ec8fd51e5db6a29fdcf1583e944`) → B1a2 NEXT (TLS/mTLS + WSS gateway runtime) → B1b PLANNED (installation/center/deny authorization) → B1c PLANNED (FSM/secure-link composition). B2 depends on completed B1. PR-08U1 depends on the A1/A2 contract freeze and acceptance of the protected-storage spike, may proceed in parallel with B1a2, and is followed by U2.
 PR-09 may follow only verified/integrated PR-08A1/A2/B1/B2 and enables no product handler. PR-10 remains session-layer work.
 PR-11 depends on PR-09/PR-10 plus verified A+B secure link and PR-08U1/U2 cross-component conformance.
 PR-12 depends on PR-11 authorized-reservation contract, the PR-04B1 user/permanent-credential foundations, and the PR-04B2 catalog/policy projection foundations. If disability profile/catalog follow-up has not shipped by then, PR-12 must preserve `tiene_discapacidad` minimization semantics without implementing disability capture.
@@ -115,9 +178,13 @@ Each PR description must repeat the repository-local chain relevant to its repos
 | **PR-08A2a — bigint connection epoch + directional sequence guard — COMPLETE / CLOSED** | Completed pure uint64 epoch validation and isolated inbound/outbound ordering. **Deps:** A1a/A1b integrated at `9216370ef4876d553e0acef18d16821ddcd11cee`. | 334 actual | New `connection-epoch.ts`, `sequence-guard.ts`, and `epoch-sequence.test.ts`; branded `bigint`, nonzero epoch, sequence from `1n`, exact `+1`, stale/replay/gap and terminal overflow behavior. | TDD proves uint64 boundaries, exact bigint preservation, stale epoch without mutation, direction isolation, duplicate/lower `REPLAY`, gap `SEQUENCE_INVALID`, and `UINT64_MAX` terminal/no-wrap behavior. No blocking OPEN REQUIREMENT. | No JSON/wire adapter, crypto generation, `message_id` dedupe, registry, peer replacement, eligibility, audit, Electron/network or product actions. |
 | **PR-08A2b — single-active-link registry + peer replacement — COMPLETE / CLOSED** | Completed pure trusted-station lease registry, integrated at `efa8c84eecdc116d6ff4a455fd8d82ecdd529d20`. **Deps:** A2a verified and integrated. | 302 actual | New `active-link-registry.ts` and `active-link-registry.test.ts`; key derived only from trusted station identity; synchronous replacement and stale-release safety. | TDD proves first/current link, same-station `PEER_REPLACED`, immediate old-link invalidation, unrelated-station isolation and stale close protection. No blocking OPEN REQUIREMENT. | No socket close, runtime lock, eligibility, audit contract, persistence, Electron/network or product actions. |
 | **PR-08A2c1 — SecurityAudit contract + delivery — CLOSED / integrated** | Finite audit vocabulary and safe sink delivery. **Deps:** A2b integrated; split from oversized combined A2c candidate (476 > 450 hard gate). | 236 production + ~75 tests = ~311 total | New `security-audit.ts` and `security-audit.test.ts`; finite categories/results/delivery statuses, exhaustive 15-code mapping, structurally allowlisted event, strict RFC3339 UTC timestamp, eventId/linkId validation, contradiction prevention, sensitive-data exclusion, SecurityAuditSink contract, async delivery normalization (RECORDED/UNAVAILABLE). | TDD proves exact finite vocabularies, all 15 mappings, PEER_REPLACED invalidation, valid event variants, contradiction rejection, malformed timestamp/eventId/linkId rejection, structural sentinels dropped, no metadata/error/secrets/LinkLease, and sync/async/throw/reject sink normalization. Normal `<=400` PASS. | No privilege evaluation, gates, product actions, durable audit, filesystem/rotation, Electron/network coupling. |
-| **PR-08A2c2 — Privileged eligibility guard — IN PROGRESS** | Pure fail-closed eligibility evaluation. **Deps:** A2c1 integrated; imports SecurityAuditDeliveryStatus from integrated A2c1. | 113 production + ~46 tests = ~159 total | New `privileged-eligibility.ts` and `privileged-eligibility.test.ts`; 12 deterministic fail-closed gates (non-legacy, protocol/schema, trusted identity, center binding, ACTIVE, secure_link_v1, epoch/sequence/active-link validity, audit RECORDED, operation authorized), default false, empty product-action allowlist. | TDD proves fully-valid eligibility true, each gate independently fails with semantically wrong value, empty/partial/simultaneous failures in deterministic order, unknown state fails closed. Normal `<=400` PASS. | No durable audit, filesystem/rotation, handlers, workflow authorization, Electron/network, product actions. |
+| **PR-08A2c2 — Privileged eligibility guard — COMPLETE / CLOSED** | Pure fail-closed eligibility evaluation, integrated at `6a51a1409ee52368d938b0eaead5bfcce479d63c`. **Deps:** A2c1 integrated; imports SecurityAuditDeliveryStatus from integrated A2c1. | 159 actual (113 production + 46 tests) | `privileged-eligibility.ts` and `privileged-eligibility.test.ts`; 12 deterministic fail-closed gates (non-legacy, protocol/schema, trusted identity, center binding, ACTIVE, secure_link_v1, epoch/sequence/active-link validity, audit RECORDED, operation authorized), default false, empty product-action allowlist. | TDD proved fully-valid eligibility true, each gate independently fails with semantically wrong value, empty/partial/simultaneous failures in deterministic order, unknown state fails closed. Normal `<=400` PASS. | No durable audit, filesystem/rotation, handlers, workflow authorization, Electron/network, product actions. |
 | **PR-08B — Dinamizador gateway/audit umbrella — SPLIT / SUPERSEDED** | Preserve aggregate scope, not an executable PR. | 380–510: 170–230 production + 210–280 tests | Exactly B1+B2. | `>450` plausible; MUST NOT create umbrella worktree. | Not completed; no own diff. |
-| **PR-08B1 — WSS/TLS gateway and installation authorization** | Compose trusted transport. **Deps:** A1/A2 verified and integrated. | 210–290: 95–130 production + 115–160 tests | Main-process WSS/TLS 1.3 mTLS; certificate/installation/center authorization; local deny; lifecycle seams; clock/expiry; 0-RTT off; safe resumption. | Tests prove mTLS, mismatch/deny/expiry, offline operation, reconnect revalidation and fail-closed clock. | No audit persistence/composition, session schema, renderer product UI or handlers. |
+| **PR-08B1 — WSS/TLS gateway umbrella — SPLIT / SUPERSEDED** | Preserve transport aggregate scope, not an executable PR. | Subdivision: B1a1 actual 88 + B1a2 forecast + B1b forecast + B1c forecast | Exactly B1a1+B1a2+B1b+B1c. | MUST NOT create umbrella worktree. | Not completed; no own diff. |
+| **PR-08B1a1 — Certificate Temporal Validation Primitives — COMPLETE / CLOSED** | Pure temporal validation of certificate notBefore/notAfter against explicit Date. **Deps:** A1/A2 verified and integrated. Integrated at `de6669ad2e511ec8fd51e5db6a29fdcf1583e944`. | 88 actual (25 production + 63 tests) | `certificate-validator.ts` and `certificate-validator.test.ts`; validates notBefore/notAfter against explicit current Date; typed results CERT_NOT_YET_VALID / CERT_EXPIRED / valid; exact boundary behavior (now >= notAfter → EXPIRED). | TDD proved temporal boundaries, explicit Date injection, no clock plausibility (deferred), no CA config/loading (deferred), no TLS runtime, no X.509 identity extraction (OPEN REQUIREMENT - field encoding undefined). Independent Gemini 3.1 Pro reviews APPROVED. | No clock plausibility policy, CA configuration/loading, TLS server, WSS, mTLS runtime, cryptographic path validation, identity extraction, installation/center authorization, deny registry, FSM integration, SecurityAudit emission, product actions. |
+| **PR-08B1a2 — TLS 1.3 / mTLS + WSS Gateway Runtime — NEXT** | Compose TLS/WSS transport runtime with B1a1 temporal validation. **Deps:** B1a1 integrated. | Forecast: 210–290 est. (95–130 production + 115–160 tests) | Main-process TLS 1.3-only server, mTLS client-certificate requirement, pinned private Infoplazas CA, WSS/WebSocket runtime, basic socket/gateway lifecycle, compose B1a1 temporal validation, verified resumption/0-RTT policy. | Tests will prove TLS 1.3-only, mTLS enforcement, private CA pinning, offline operation, temporal validation composition, resumption behavior, 0-RTT policy. ZERO product actions. | No installation registry authorization, center authorization, deny registry, identity-dependent authorization, ACTIVE secure-link transition, business/session/user actions, durable audit persistence. Clock plausibility composition requires resolved OPEN REQUIREMENT before production ACTIVE behavior. |
+| **PR-08B1b — Installation / Center / Deny Authorization — PLANNED** | Add identity-dependent authorization atop B1a2 transport. **Deps:** B1a2 integrated, X.509 identity encoding OPEN REQUIREMENT resolved. | Future planning | Installation registry, center binding, deny registry, identity extraction from certificates using resolved field encoding. | Future gates TBD after X.509 OPEN REQUIREMENT closure. | No ACTIVE transition, business actions, session schema. |
+| **PR-08B1c — FSM / Secure-Link Composition — PLANNED** | Integrate transport + authorization into secure-link FSM. **Deps:** B1b integrated. | Future planning | Secure-link FSM integration, state transitions using verified transport + authorization. | Future gates TBD. | No business handlers, session activation. |
 | **PR-08B2 — durable security audit adapter + Electron composition** | Add durable evidence and main-process wiring. **Deps:** B1 integrated. | 170–220: 75–100 production + 95–120 tests | `SecurityAuditSink` allowlist/durability, rejection-channel mapping and Electron composition without secrets in IPC/renderer. | Tests prove TLS audit vs wire reject, sink failure, redaction, lifecycle and zero product handlers. | No session schema, operator UI or business capability. |
 | **PR-08U — Usuario PC counterpart umbrella — SPLIT / SUPERSEDED** | Preserve approved counterpart scope, not an executable PR. | 480–630: 220–290 production + 260–340 tests | Exactly U1+U2. | Mandatory split; MUST NOT create umbrella worktree. | Not completed; no own diff. |
 | **PR-08U1 — protected credential + WSS/mTLS client + peer binding** | Establish Usuario PC transport identity. **Deps:** PR-07B, A1/A2 freeze, storage spike accepted. MAY run parallel with B. | 250–330: 115–150 production + 135–180 tests | Accepted Windows key adapter; WSS/TLS 1.3 mTLS client; Dinamizador certificate/installation/center verification; deny/status and expiry/clock. | Go tests prove storage invariant, offline mTLS, mismatch/deny/expiry, no plaintext WS and no product routing. | No app negotiation, epoch/sequence, session behavior, migrations or handlers. |
@@ -133,7 +200,7 @@ Each PR description must repeat the repository-local chain relevant to its repos
 
 ### Size audit
 
-The approved A2 implementation preflight replaces the stale single-A2 `210–260` forecast. The plan now contains 34 executable units: A1 completed as A1a/A1b (641 actual changed lines), while the non-executable A2 umbrella is superseded by A2a/A2b/A2c (951–1,021 actual/forecast). A2a is COMPLETE/CLOSED with 334 actual, A2b is COMPLETE/CLOSED with 302 actual and integrated at `efa8c84eecdc116d6ff4a455fd8d82ecdd529d20`, and A2c is NOT STARTED/preflight-ready at 170–205 production + 145–180 tests = 315–385 total; normal `<=400` PASS. Its finite vocabulary is approved in the secure-link specification and no A2c OPEN REQUIREMENT remains. Future bigint/link-identifier JSON/wire mapping belongs to later transport integration and does not block A2c. Revised arithmetic: Dinamizador A is 1,592–1,662; A+B is 1,972–2,172; cross-repo A+B+U is 2,452–2,802. No 401–450 exception is approved and tests MUST NOT be compressed. Umbrellas are superseded by subdivision, not completed, and have no worktree/diff. Existing size rules, the sole documented PR-05A2 exception path, PR-04C deferral, superseded history and frozen-worktree notes remain unchanged.
+The approved A2 and B1 implementation preflights replace stale umbrella forecasts. The plan now contains 37 executable units: A1 completed as A1a/A1b (641 actual changed lines); the non-executable A2 umbrella is superseded by A2a/A2b/A2c1/A2c2; the non-executable B1 umbrella is superseded by B1a1/B1a2/B1b/B1c. A2a is COMPLETE/CLOSED with 334 actual, A2b is COMPLETE/CLOSED with 302 actual integrated at `efa8c84eecdc116d6ff4a455fd8d82ecdd529d20`, A2c1 is COMPLETE/CLOSED with ~311 actual (~236 production + ~75 tests) integrated at `9d81269e2f6ee49590c182298c157c50449b0f32`, and A2c2 is COMPLETE/CLOSED with 159 actual (113 production + 46 tests) integrated at `6a51a1409ee52368d938b0eaead5bfcce479d63c`. B1a1 is COMPLETE/CLOSED with 88 actual (25 production + 63 tests) integrated at `de6669ad2e511ec8fd51e5db6a29fdcf1583e944`. Future bigint/link-identifier JSON/wire mapping belongs to later transport integration. Revised arithmetic: Dinamizador A is 1,592–1,662 actual (641 A1 + 334 A2a + 302 A2b + 311 A2c1 + 159 A2c2 ≈ less umbrella overlap = ~1,747 net); Dinamizador A+B1a1 is 1,835 actual; full A+B forecast remains 1,972–2,172; cross-repo A+B+U forecast remains 2,452–2,802. No 401–450 exception is approved and tests MUST NOT be compressed. Umbrellas are superseded by subdivision, not completed, and have no worktree/diff. Existing size rules, the sole documented PR-05A2 exception path, PR-04C deferral, superseded history and frozen-worktree notes remain unchanged.
 
 ## Execution checklist by PR
 
@@ -173,8 +240,13 @@ For each PR below, perform its tabled scope and acceptance command in the stated
 **PR-08A2 is SPLIT / SUPERSEDED:** no umbrella worktree, RED or apply task exists; execute only A2a → A2b → A2c.
 - [x] **PR-08A2a RED → GREEN → TRIANGULATE → REFACTOR — COMPLETE / CLOSED:** Branded-bigint connection epoch validation and physically separate inbound/outbound sequence state were completed and integrated; historical scope above remains authoritative. Future bigint/link-identifier JSON/wire mapping is deferred and non-blocking. <!-- sdd-owner: implementation -->
 - [x] **PR-08A2b RED → GREEN → TRIANGULATE → REFACTOR — COMPLETE / CLOSED:** Trusted-station single-active-link registry, synchronous same-station replacement with `PEER_REPLACED`, unrelated-station isolation and stale-release protection were completed and integrated at `efa8c84eecdc116d6ff4a455fd8d82ecdd529d20`. <!-- sdd-owner: implementation -->
-- [ ] **PR-08A2c RED → GREEN → TRIANGULATE → REFACTOR — NOT STARTED / preflight-ready:** After integrated A2b, test then implement only default-false privileged eligibility with an empty product-action allowlist plus the pure allowlisted `SecurityAuditSink` contract and fail-closed availability wrapper. The finite vocabulary is approved in the secure-link specification; no A2c OPEN REQUIREMENT remains. No durable audit, Electron/runtime composition or product handler. <!-- sdd-owner: implementation -->
-- [ ] **PR-08B1 RED → GREEN → TRIANGULATE → REFACTOR:** After A1/A2 verify and integrate, test and implement main-process WSS/TLS 1.3 mTLS, installation/center registry, deny/lifecycle/clock/resumption; triangulate offline, mismatch, expiry and fail-closed paths. <!-- sdd-owner: implementation -->
+- [x] **PR-08A2c1 RED → GREEN → TRIANGULATE → REFACTOR — COMPLETE / CLOSED:** SecurityAudit contract and delivery wrapper completed and integrated at `9d81269e2f6ee49590c182298c157c50449b0f32`. <!-- sdd-owner: implementation -->
+- [x] **PR-08A2c2 RED → GREEN → TRIANGULATE → REFACTOR — COMPLETE / CLOSED:** Privileged eligibility guard completed and integrated at `6a51a1409ee52368d938b0eaead5bfcce479d63c`. 12 fail-closed gates, default false, empty product-action allowlist. <!-- sdd-owner: implementation -->
+**PR-08B1 is SPLIT / SUPERSEDED:** no umbrella worktree, RED or apply task exists; execute only B1a1 → B1a2 → B1b → B1c.
+- [x] **PR-08B1a1 RED → GREEN → TRIANGULATE → REFACTOR — COMPLETE / CLOSED:** Certificate Temporal Validation Primitives completed and integrated at `de6669ad2e511ec8fd51e5db6a29fdcf1583e944`. Pure notBefore/notAfter validation against explicit Date; typed results; exact boundaries. NO clock plausibility (OPEN REQUIREMENT deferred), NO CA config (deferred to B1a2), NO X.509 identity extraction (OPEN REQUIREMENT - field encoding undefined). Independent Gemini 3.1 Pro reviews APPROVED. 88 actual lines (25 production + 63 tests). <!-- sdd-owner: implementation -->
+- [ ] **PR-08B1a2 RED → GREEN → TRIANGULATE → REFACTOR — NEXT:** After B1a1 integrated, test and implement TLS 1.3-only server, mTLS client-certificate requirement, pinned private Infoplazas CA, WSS/WebSocket runtime, basic lifecycle, compose B1a1 temporal validation, verified resumption/0-RTT policy. ZERO product actions. NO installation/center authorization (deferred to B1b), NO identity extraction until X.509 OPEN REQUIREMENT resolved, NO ACTIVE transition, NO business handlers. Clock plausibility composition requires resolved OPEN REQUIREMENT before production ACTIVE behavior. <!-- sdd-owner: implementation -->
+- [ ] **PR-08B1b RED → GREEN → TRIANGULATE → REFACTOR — PLANNED:** After B1a2 and X.509 identity encoding OPEN REQUIREMENT resolved, implement installation registry, center binding, deny registry, identity extraction using resolved field encoding. NO ACTIVE transition, NO business actions. <!-- sdd-owner: implementation -->
+- [ ] **PR-08B1c RED → GREEN → TRIANGULATE → REFACTOR — PLANNED:** After B1b, integrate transport + authorization into secure-link FSM with state transitions. NO business handlers, NO session activation. <!-- sdd-owner: implementation -->
 - [ ] **PR-08B2 RED → GREEN → TRIANGULATE → REFACTOR:** After B1 integrates, test and implement durable audit adapter and Electron composition; triangulate TLS-local versus wire reject, sink failure and sentinel redaction; keep IPC/renderer free of key material and product handlers. <!-- sdd-owner: implementation -->
 - [ ] **PR-08U1 RED → GREEN → TRIANGULATE → REFACTOR:** After A1/A2 contract freeze and accepted storage spike, test and implement protected credential loading, WSS/mTLS client and Dinamizador binding; MAY proceed parallel with B. <!-- sdd-owner: implementation -->
 - [ ] **PR-08U2 RED → GREEN → TRIANGULATE → REFACTOR:** After U1, test and implement hello/accept/reject, FSM, epoch-sequence/reconnect and audit; prove cross-component conformance and zero session/product behavior. <!-- sdd-owner: implementation -->
