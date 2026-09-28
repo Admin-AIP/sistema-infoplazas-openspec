@@ -7,6 +7,51 @@ negociar Agent v2 y proteger tráfico LAN privilegiado de manera offline-first,
 sin habilitar acciones de producto. Este contrato aplica conjuntamente a
 Soft_Dinamizador y Soft_Usuario_PC.
 
+## Estado de implementación (informativo; no modifica los requisitos)
+
+El estado autoritativo de Dinamizador es `master == origin/master` en
+`2b713ce450a295a996c8dad2b4b1d0957c6db99a`. PR-08A1 está CLOSED como A1a
+`83fd2fc4a57f469c99fc36464a9a0af7084f70c0` + A1b
+`9216370ef4876d553e0acef18d16821ddcd11cee`; PR-08A2 está CLOSED como A2a
+`1dbd4eafaacf9b10f91b944b32a9451e699f43bf`, A2b
+`efa8c84eecdc116d6ff4a455fd8d82ecdd529d20`, A2c1
+`9d81269e2f6ee49590c182298c157c50449b0f32` y A2c2
+`6a51a1409ee52368d938b0eaead5bfcce479d63c`.
+
+PR-08B1 está **IN PROGRESS**. B1a1, solo primitivas temporales, está CLOSED en
+`de6669ad2e511ec8fd51e5db6a29fdcf1583e944`; plausibilidad de reloj permanece
+OPEN. B1a2a1f está CLOSED/INTEGRATED/PUSHED en
+`22f509c88412bba53d39361dc7aa78aee1806f47` y contiene solo fixtures TEST-ONLY,
+sin secretos de producción, clave privada firmante de CA, claim de
+runtime/seguridad ni acciones de producto. B1a2a1 está CLOSED/INTEGRATED/PUSHED
+en `2b713ce450a295a996c8dad2b4b1d0957c6db99a`, cuyo parent es
+`22f509c88412bba53d39361dc7aa78aee1806f47`: 299 líneas
+reales (102 producción + 197 pruebas), HTTPS, TLS 1.3-only, rechazo TLS 1.2,
+mTLS con `requestCert: true`/`rejectUnauthorized: true`, confianza exclusiva en
+la CA privada del proyecto, pruebas de cliente confiable/ausente/no confiable,
+lifecycle y manejo de error runtime. Validación: TLS 6/6, secure-link 90/90,
+security/main 101/101 y typecheck PASS. Las acciones de producto son **CERO**
+(`Product actions: ZERO`).
+
+`SSL_OP_NO_TICKET` está configurado, pero no prueba no-reanudación. B1a2a1r es
+NEXT / OPEN TECHNICAL SLICE para registrar evidencia Node 22/OpenSSL 3 sobre
+material de evento/ticket TLS 1.3 observado, sin diseñar solución. B1a2a2 está
+PLANNED / NOT STARTED para `https.createServer` +
+`WebSocketServer({ noServer: true })` + HTTPS Upgrade, con validación temporal
+B1a1 antes de `handleUpgrade` y WSS solo después de TLS/mTLS; `ws` runtime y
+`@types/ws` dev son candidatos sin pinning de versión. B1a2b, separado para
+resource controls/hardening, está PLANNED / NOT STARTED.
+
+B1b está PLANNED / BLOCKED por la codificación OPEN de identidad de negocio
+X.509; no se inventa mapping CN/O/OU/SAN/custom extension. B1c está PLANNED /
+NOT STARTED: las primitivas existentes no componen transporte + identidad +
+negociación + `ACTIVE`. También permanecen OPEN la plausibilidad de reloj, la
+política de reanudación TLS y la provisión física del certificado/clave de
+servidor. El `master` actual no contiene `ws`, WSS, HTTP Upgrade, resolución de
+reanudación, identidad de negocio, autorización de instalación/centro/deny,
+composición transporte-FSM completa, `ACTIVE` de producción ni acciones de
+producto.
+
 ## Requirements
 
 ### Requirement: Transporte WSS/TLS 1.3 con autenticación mutua
@@ -45,6 +90,9 @@ centro. La identidad humana del operador MUST permanecer separada.
 `station_id`, `center_id`, `source_id` y `link_id` del sobre MUST permanecer
 claims hasta comprobarlos contra certificado, registro autorizado y binding de
 centro. IP, MAC, hostname, nombre visible o mDNS MUST NOT conferir identidad.
+La codificación concreta de identidad de negocio en X.509 permanece como **OPEN
+REQUIREMENT**; hasta aprobarla, B1b MUST permanecer bloqueado y ninguna
+implementación puede inventar un mapping CN/O/OU/SAN/custom extension.
 
 #### Scenario: Identidad y centro coinciden
 
@@ -75,7 +123,11 @@ centro. IP, MAC, hostname, nombre visible o mDNS MUST NOT conferir identidad.
 
 Cada endpoint MUST generar su clave privada localmente y usar CSR. La emisión
 MUST requerir autorización mediante flujo online o paquete offline firmado. Todo paquete offline MUST estar vinculado exactamente al CSR y nonce actuales, y MUST avanzar un estado de autorización monotónico (high-water mark) para prevenir replay y rollback. La
-raíz/CA pública MUST fijarse localmente para confianza runtime offline.
+raíz/CA pública MUST fijarse localmente para confianza runtime offline. La
+provisión física del certificado y clave de servidor Dinamizador permanece como
+**OPEN REQUIREMENT**: las fixtures TEST-ONLY no seleccionan fuente, carga
+protegida, binding de instalación, reemplazo ni procedimiento operacional de
+producción, y la clave privada firmante de CA MUST permanecer fuera del endpoint.
 
 En Windows, las claves privadas MUST usar almacenamiento protegido y ACL
 restrictiva. Un spike MUST seleccionar Certificate Store/CNG cuando sea práctico
@@ -176,7 +228,11 @@ heredados. Dinamizador MUST exponer a lo sumo un enlace ACTIVE por station_id va
 
 La reanudación TLS MAY usarse solo si cada conexión nueva revalida vigencia del
 certificado, identidad autenticada, registro de autorización, binding de centro y
-deny local. Si el stack no puede garantizarlo, MUST deshabilitarse.
+deny local. Si el stack no puede garantizarlo, MUST deshabilitarse. La política
+concreta permanece como **OPEN REQUIREMENT**: `SSL_OP_NO_TICKET` configurado no
+prueba no-reanudación ante el material de evento/ticket TLS 1.3 observado en Node
+22/OpenSSL 3. B1a2a1r MUST registrar evidencia antes de cualquier claim de
+conformidad y esta especificación no anticipa la solución.
 
 #### Scenario: Reconexión limpia
 
@@ -375,7 +431,9 @@ depender de Internet/NTP. Un reloj local implausible o no confiable MUST impedir
 una nueva transición a `ACTIVE`; MUST NOT omitir validación temporal. Una
 conexión MUST cerrarse no después de `notAfter` del certificado peer. La
 arquitectura MUST registrar que protección absoluta contra rollback del reloj es
-imposible totalmente offline sin tiempo confiable.
+imposible totalmente offline sin tiempo confiable. Los criterios, fuentes y
+comportamiento concretos de plausibilidad del reloj permanecen como **OPEN
+REQUIREMENT**; las primitivas B1a1 no lo resuelven.
 
 #### Scenario: Certificado expira durante conexión
 

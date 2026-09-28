@@ -11,7 +11,7 @@
 2. Revisar el contrato normativo cruzado en
    [`specs/dinamizador-usuario-pc-secure-link/spec.md`](./specs/dinamizador-usuario-pc-secure-link/spec.md).
 3. Confirmar el límite de cero acciones de producto y la subdivisión obligatoria.
-4. Ejecutar un preflight nuevo antes del primer worktree potencial: PR-08A1.
+4. Ejecutar un preflight nuevo antes de la siguiente slice técnica: PR-08B1a2a1r.
 
 ## 1. Jerarquía y naturaleza de las decisiones
 
@@ -25,6 +25,41 @@ vida/recuperación y auditoría. No se atribuye a los PDFs una selección
 criptográfica concreta ni un algoritmo anti-replay. WSS sobre TLS 1.3 con mTLS,
 la PKI privada, la negociación v2 y las reglas de época/secuencia son decisiones
 de **ARQUITECTURA TÉCNICA aprobadas**.
+
+### Estado integrado autoritativo de PR-08
+
+Dinamizador `master == origin/master` está en
+`2b713ce450a295a996c8dad2b4b1d0957c6db99a`. PR-08A1 está CLOSED como A1a
+`83fd2fc4a57f469c99fc36464a9a0af7084f70c0` + A1b
+`9216370ef4876d553e0acef18d16821ddcd11cee`. PR-08A2 está CLOSED como A2a
+`1dbd4eafaacf9b10f91b944b32a9451e699f43bf`, A2b
+`efa8c84eecdc116d6ff4a455fd8d82ecdd529d20`, A2c1
+`9d81269e2f6ee49590c182298c157c50449b0f32` y A2c2
+`6a51a1409ee52368d938b0eaead5bfcce479d63c`.
+
+PR-08B1 está **IN PROGRESS**. B1a1 está CLOSED en
+`de6669ad2e511ec8fd51e5db6a29fdcf1583e944`. B1a2a1f, solo fixtures TEST-ONLY
+sin secretos de producción ni clave privada firmante de CA, está
+CLOSED/INTEGRATED/PUSHED en `22f509c88412bba53d39361dc7aa78aee1806f47`.
+B1a2a1 está CLOSED/INTEGRATED/PUSHED en
+`2b713ce450a295a996c8dad2b4b1d0957c6db99a`, con parent
+`22f509c88412bba53d39361dc7aa78aee1806f47`: 299 líneas reales, exactamente 102
+de producción + 197 de pruebas. Entrega base HTTPS, TLS 1.3-only, rechazo TLS
+1.2, mTLS con `requestCert: true` y `rejectUnauthorized: true`, confianza
+exclusiva en CA privada del proyecto, pruebas de
+cliente confiable/ausente/no confiable, lifecycle y manejo de error runtime. Su
+evidencia es TLS 6/6, secure-link 90/90, security/main 101/101 y typecheck PASS.
+`SSL_OP_NO_TICKET` está configurado, pero **no prueba** ausencia de reanudación.
+
+B1a2a1r es NEXT / OPEN TECHNICAL SLICE; debe registrar evidencia de Node
+22/OpenSSL 3 ante material de evento/ticket TLS 1.3 observado sin diseñar una
+solución. B1a2a2 y B1a2b están PLANNED / NOT STARTED. B1b está PLANNED / BLOCKED
+por la codificación de identidad de negocio X.509; B1c está PLANNED / NOT
+STARTED. El `master` actual no contiene `ws`, WSS, HTTP Upgrade, resolución de
+reanudación, identidad de negocio, autorización de instalación/centro/deny,
+composición completa transporte-FSM, ACTIVE de producción ni acciones de
+producto. Las acciones de
+producto son **CERO** (`Product actions: ZERO`).
 
 ## 2. Matriz de cierre de los nueve bloqueadores
 
@@ -117,7 +152,10 @@ capacidades ni privilegios heredados. Reemplazar el peer invalida inmediatamente
 el binding. TLS 1.3 early data/0-RTT queda deshabilitado. La reanudación TLS solo
 puede usarse si en cada conexión nueva se revalidan vigencia del certificado,
 identidad autenticada, registro autorizado, centro y deny local; si el stack no
-lo garantiza, se deshabilita la reanudación.
+lo garantiza, se deshabilita la reanudación. La política permanece **OPEN**:
+B1a2a1 configuró `SSL_OP_NO_TICKET`, pero observó material de evento/ticket TLS
+1.3 bajo Node 22/OpenSSL 3 y no probó ausencia de reanudación. B1a2a1r debe
+resolver esta evidencia antes de afirmar conformidad.
 
 ## 7. Negociación de aplicación exacta
 
@@ -222,37 +260,35 @@ políticas de negocio separadas.
 
 ## 12. Tamaño y subdivisión obligatoria
 
-La estimación post-mTLS de Sol sustituye todos los forecasts provisionales anteriores:
+Los forecasts umbrella originales son históricos y no sustituyen el estado
+integrado ni la descomposición actual:
 
-| Umbrella/slice | Producción | Pruebas | Total | Estado |
-| --- | ---: | ---: | ---: | --- |
-| PR-08A | 180–230 | 220–280 | 400–510 | Umbrella no ejecutable; `>450` plausible. Superseded por A1+A2. |
-| PR-08A1 — contrato/schema/FSM/capacidad/versión | 85–110 | 105–140 | 190–250 | Ejecutable solo tras preflight nuevo. |
-| PR-08A2 — época/secuencia/replay/guard privilegiado | 95–120 | 115–140 | 210–260 | Ejecutable después de A1. |
-| PR-08B | 170–230 | 210–280 | 380–510 | Umbrella no ejecutable; `>450` plausible. Superseded por B1+B2. |
-| PR-08B1 — WSS/TLS, identidad/centro, lifecycle/clock/resumption | 95–130 | 115–160 | 210–290 | Depende de contratos A verificados e integrados. |
-| PR-08B2 — auditoría durable + composición Electron | 75–100 | 95–120 | 170–220 | Depende de B1. |
-| PR-08U | 220–290 | 260–340 | 480–630 | Umbrella no ejecutable; split obligatorio. Superseded por U1+U2. |
-| PR-08U1 — credencial protegida + cliente WSS/mTLS + peer binding | 115–150 | 135–180 | 250–330 | Tras freeze A1/A2 y aceptación del spike de storage. |
-| PR-08U2 — negociación/FSM/época-secuencia/reconnect/audit | 105–140 | 125–160 | 230–300 | Depende de U1. |
-
-Reconciliación exacta:
-
-- A1+A2 = 180–230 producción + 220–280 pruebas = **400–510**.
-- B1+B2 = 170–230 producción + 210–280 pruebas = **380–510**.
-- U1+U2 = 220–290 producción + 260–340 pruebas = **480–630**.
-- Dinamizador A+B = **780–1,020**.
-- Total cross-repo A+B+U = **1,260–1,650**.
+| Umbrella/slice | Tamaño | Estado autoritativo |
+| --- | ---: | --- |
+| PR-08A1 | 641 actual | CLOSED como A1a + A1b. |
+| PR-08A2 | Hijos separados | CLOSED como A2a + A2b + A2c1 + A2c2. |
+| PR-08B1 | Hijos separados | IN PROGRESS; umbrella no ejecutable. |
+| PR-08B1a1 | 88 actual: 25 producción + 63 pruebas | CLOSED/INTEGRATED. |
+| PR-08B1a2a1f | 166 líneas de fixtures | CLOSED/INTEGRATED/PUSHED; TEST-ONLY. |
+| PR-08B1a2a1 | **299 actual: 102 producción + 197 pruebas** | CLOSED/INTEGRATED/PUSHED. |
+| PR-08B1a2a1r | Preflight fresco ≤400 | NEXT / OPEN TECHNICAL SLICE. |
+| PR-08B1a2a2 | Preflight fresco ≤400 | PLANNED / NOT STARTED: WSS core + HTTPS Upgrade. |
+| PR-08B1a2b | Preflight fresco ≤400 | PLANNED / NOT STARTED: resource controls/hardening separado. |
+| PR-08B1b | Planificación futura | PLANNED / BLOCKED por identidad X.509. |
+| PR-08B1c | Planificación futura | PLANNED / NOT STARTED. |
+| PR-08B2 | 170–220 forecast histórico | Depende de B1 completo. |
+| PR-08U1 | 250–330 forecast | Tras freeze A1/A2 y aceptación del spike de storage. |
+| PR-08U2 | 230–300 forecast | Depende de U1. |
 
 Cada slice ejecutable tiene target máximo ≤400. No se aprueba excepción
-401–450. Los umbrellas quedan no ejecutables/superseded por subdivisión, no
-completados.
+401–450. Los umbrellas son no ejecutables, no poseen diff propio y no deben
+ocultar los tamaños reales de sus hijos.
 
 ## 13. Orden y readiness
 
 ```text
 Dinamizador:
-PR-02 integrado → PR-08A1 → PR-08A2 → PR-08B1 → PR-08B2 → PR-09 → PR-10 → PR-11
+PR-02 integrado → A1 CLOSED → A2 CLOSED → B1a1 CLOSED → B1a2a1f CLOSED → B1a2a1 CLOSED → B1a2a1r NEXT/OPEN → B1a2a2 → B1a2b → B1b BLOCKED → B1c → B2 → PR-09 → PR-10 → PR-11
 
 Usuario PC:
 PR-07B COMPLETE/integrado → freeze contractual PR-08A1/A2
@@ -268,11 +304,12 @@ adelanta sus handlers. PR-08U tiene exactamente las responsabilidades aprobadas
 y no añade handlers de producto, migraciones ni conducta de sesión. Antes de
 PR-11 se exige conformidad cross-repo.
 
-**Readiness:** los nueve requisitos originales están cerrados y listos para
-planificación de implementación. No están listos para crear worktrees umbrella
-PR-08A, PR-08B o PR-08U. No se crea worktree en este cierre. El primer worktree
-potencial es PR-08A1, únicamente después de un preflight de implementación
-nuevo.
+**Readiness:** los nueve bloqueadores arquitectónicos originales permanecen
+cerrados, A1/A2 están cerrados y B1 está en progreso. No se crean worktrees
+umbrella PR-08A, PR-08B, PR-08B1 o PR-08U. La próxima slice técnica es
+B1a2a1r, solo tras preflight fresco y limitada a evidencia de reanudación. Las
+slices WSS/hardening posteriores no autorizan identidad, ACTIVE ni acciones de
+producto.
 
 ## 14. Riesgos y limitaciones aceptadas
 
@@ -282,6 +319,12 @@ nuevo.
   reloj local implausible impide nuevas conexiones ACTIVE.
 - El spike de storage todavía debe seleccionar adaptador y demostrar la
   no salida/exportación/copia de claves privadas.
+- La política TLS resumption permanece OPEN; `SSL_OP_NO_TICKET` no constituye
+  prueba de no-reanudación bajo la evidencia actual de Node 22/OpenSSL 3.
+- La codificación X.509 de identidad de negocio y la provisión física del
+  certificado/clave de servidor Dinamizador permanecen OPEN; no se inventan.
+- La plausibilidad del reloj local permanece OPEN aunque existan primitivas de
+  validación temporal.
 - Retención, acceso y exportación de auditoría siguen siendo política de negocio;
   no se inventan en esta arquitectura.
 - Cualquier expansión a capacidades o acciones de producto requiere contrato y
