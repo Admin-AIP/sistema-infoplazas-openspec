@@ -722,115 +722,196 @@ server.on('secureConnection', (tlsSocket) => {
 
 **Change ID**: PR-08B1a2a1r2
 
+**Status**: ARCHITECTURE RATIFIED (2026-09-29)
+
 **Purpose**: Add security audit event recording for TLS session resumption rejections implemented in PR-08B1a2a1r1. Validate fail-closed semantics (audit failure does not grant access).
 
-**Scope**:
-- Add `TLS_SESSION_RESUMED` rejection code to contracts
-- Add audit category mapping
-- Add audit recording call in resumption rejection path (with fail-closed try/catch)
-- Prove audit integration does NOT weaken Slice 1 enforcement
+**⚠️ ARCHITECTURAL CORRECTION (Option B):**
 
-**Production Changes**:
+Original approach (SUPERSEDED): Add `TLS_SESSION_RESUMED` to `REJECTION_CODES`
+- ❌ **Problem**: `RejectionCode` is used by `LinkRejectPayload` (wire protocol)
+- ❌ **Issue**: TLS resumption occurs BEFORE secure-link negotiation (no peer to receive link.reject)
+- ❌ **Result**: Would expand wire contract with transport-only code
+
+**Ratified approach (Option B)**: Separate transport audit vocabulary
+- ✅ **Solution**: Introduce `TransportRejectionReason` for pre-negotiation transport rejections
+- ✅ **Benefit**: Preserves wire protocol layering (transport vs application)
+- ✅ **Architect**: sdd-design (anthropic/claude-sonnet-4-5) APPROVED 2026-09-29
+- ✅ **Independent Review**: gentle-ai-verify (gemini-3.1-pro) APPROVED 2026-09-29
+
+**Scope**:
+- Add `TransportRejectionReason` type (transport audit only, NOT wire protocol)
+- Extend `SecurityAuditEvent` union with `TransportRejectedEvent`
+- Add audit recording call in resumption rejection path (async, fire-and-forget)
+- Prove audit integration does NOT weaken Slice 1 enforcement (destroy FIRST, audit AFTER)
+
+**Production Changes (Option B)**:
 
 ```typescript
 // apps/desktop/electron/security/secure-link/contracts.ts
-
-export const REJECTION_CODES = [
-  // ... existing codes ...
-  'TLS_SESSION_RESUMED', // NEW: Policy A enforcement audit
-] as const
+// NO CHANGES (15-item RejectionCode preserved for wire protocol)
 ```
 
 ```typescript
 // apps/desktop/electron/security/secure-link/security-audit.ts
 
-export const REJECTION_AUDIT_OUTCOMES: Record<RejectionCode, readonly [AuditCategory, "REJECTED" | "INVALIDATED"]> = {
-  // ... existing mappings ...
-  TLS_SESSION_RESUMED: ["AUTHENTICATION", "REJECTED"], // NEW
+// NEW: Transport-layer rejection vocabulary (pre-negotiation, no peer identity)
+export const TRANSPORT_REJECTION_REASONS = [
+  'TLS_SESSION_RESUMED',
+] as const;
+
+export type TransportRejectionReason = (typeof TRANSPORT_REJECTION_REASONS)[number];
+
+// NEW: Audit event for transport-layer rejections
+type TransportRejectedEvent = BaseAuditEvent & {
+  readonly result: 'REJECTED';
+  readonly category: 'AUTHENTICATION';
+  readonly transportRejectionReason: TransportRejectionReason;
+  // NO rejectionCode (secure-link wire protocol only)
+  // NO linkId/installationId/stationId (no negotiation yet)
 };
+
+// UPDATED: Extend union
+export type SecurityAuditEvent = 
+  | SuccessEvent 
+  | FailedEvent 
+  | RejectedEvent 
+  | InvalidatedEvent 
+  | TransportRejectedEvent; // NEW
+
+// UPDATED: Validation handles transport rejection
+export function createSecurityAuditEvent(input: unknown): ... {
+  // ... existing validation ...
+  
+  // NEW: Validate transport rejection
+  if (data.result === 'REJECTED' && data.transportRejectionReason) {
+    if (data.category !== 'AUTHENTICATION') {
+      return { ok: false, error: 'INVALID_CATEGORY_RESULT_COMBINATION' };
+    }
+    // ... build TransportRejectedEvent ...
+  }
+}
 ```
 
 ```typescript
 // apps/desktop/electron/security/transport/tls-gateway.ts
 
+export interface TlsGatewayConfig {
+  // ... existing fields ...
+  readonly auditSink?: SecurityAuditSink; // NEW - optional
+}
+
 server.on('secureConnection', (tlsSocket) => {
-  // POLICY A: Reject TLS session resumption (primary enforcement)
-  if (tlsSocket.isSessionReused()) {
-    // Audit the rejection (fail-closed: destroy even if audit fails)
-    try {
-      recordSecurityAuditEvent(
-        config.auditSink,
-        {
-          eventId: crypto.randomUUID(),
-          timestamp: new Date().toISOString(),
-          category: 'AUTHENTICATION',
-          result: 'REJECTED',
-          rejectionCode: 'TLS_SESSION_RESUMED',
-          capabilities: [],
-        }
-      )
-    } catch {
-      // Audit failed, but we STILL destroy the socket (fail-closed)
-    }
+  // POLICY A: Reject TLS session resumption (primary enforcement - r1, UNCHANGED)
+  if (!enforceFreshTlsConnection(tlsSocket)) {
+    // Socket already destroyed synchronously by r1
     
-    // Fail-closed: destroy socket regardless of audit success
-    tlsSocket.destroy()
-    return
+    // NEW (r2): Emit transport audit AFTER destruction (async, fire-and-forget)
+    if (config.auditSink) {
+      void recordTransportRejectionAudit(config.auditSink, 'TLS_SESSION_RESUMED')
+        .catch(() => {}); // Sink failure is silent - rejection already complete
+    }
+    return;
   }
 
   // ... rest of listener unchanged ...
-})
+});
+
+// NEW: Helper for transport rejection audit
+async function recordTransportRejectionAudit(
+  sink: SecurityAuditSink,
+  reason: TransportRejectionReason
+): Promise<void> {
+  const event = createSecurityAuditEvent({
+    eventId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    category: 'AUTHENTICATION',
+    result: 'REJECTED',
+    capabilities: [],
+    transportRejectionReason: reason,
+  });
+  
+  if (event.ok) {
+    await recordSecurityAuditEvent(sink, event.value);
+  }
+}
 ```
 
-**Files Modified**:
-1. `apps/desktop/electron/security/secure-link/contracts.ts` (+1 line)
-2. `apps/desktop/electron/security/secure-link/security-audit.ts` (+1 line)
-3. `apps/desktop/electron/security/transport/tls-gateway.ts` (+20 lines: imports, audit call, try/catch)
-4. `apps/desktop/test/main/security/transport/tls-gateway.test.ts` (see tests below)
+**Files Modified (Option B)**:
+1. `apps/desktop/electron/security/secure-link/contracts.ts` (**NO CHANGES** - wire protocol preserved)
+2. `apps/desktop/electron/security/secure-link/security-audit.ts` (+25 lines: types, validation)
+3. `apps/desktop/electron/security/transport/tls-gateway.ts` (+20 lines: config, helper, audit call)
+4. `apps/desktop/test/main/security/transport/tls-gateway.test.ts` (+70 lines: audit tests)
+5. `apps/desktop/test/main/security/secure-link/security-audit.test.ts` (+15 lines: validation tests)
 
 **Files Added**: None  
 **Files Deleted**: None
 
-**Test Changes** (Tests 11-14):
+**Test Changes (Option B)**:
 
-11. **Test 11**: SSL_OP_NO_TICKET remains configured (~15 lines)
-12. **Test 12**: Documentation test (defense-in-depth reminder) (~10 lines)
-13. **Test 13**: Audit event emitted on rejection (~35 lines)
-14. **Test 14**: Audit failure does not grant access (~30 lines)
+**tls-gateway.test.ts** (+70 lines):
+- Test: Resumed TLS produces exactly ONE transport rejection audit
+- Test: Event has `transportRejectionReason: 'TLS_SESSION_RESUMED'`
+- Test: Event category `AUTHENTICATION`, result `REJECTED`
+- Test: Undefined sink doesn't error
+- Test: Sink returning `UNAVAILABLE` doesn't weaken rejection
+- Test: Sink throwing doesn't weaken rejection
+- Test: Async rejected Promise doesn't weaken rejection
+- Test: Fresh TLS does NOT produce transport rejection audit
 
-**Test Helpers**:
-- `createMockAuditSink()`: Accumulate audit events for verification (~15 lines)
-- `createFailingMockAuditSink()`: Always throw to test fail-closed (~10 lines)
+**security-audit.test.ts** (+15 lines):
+- Test: `createSecurityAuditEvent` validates `TransportRejectedEvent`
+- Test: Validation rejects invalid category for transport rejection
+- Test: Validation rejects conflicting fields (rejectionCode + transportRejectionReason)
 
-**Test Suite**: Append to `describe('TLS Session Resumption (Policy A)', ...)` in `apps/desktop/test/main/security/transport/tls-gateway.test.ts`
+**Size Estimate (Option B)**:
+- Production: ~45 lines (security-audit +25, tls-gateway +20)
+- Tests: ~85 lines (tls-gateway +70, security-audit +15)
+- **Total**: ~130 lines ✅ **PASS** (≤400)
 
-**Size Estimate**:
-- Production: ~22 lines (contracts +1, audit +1, gateway +20)
-- Tests: ~115 lines (4 tests + 2 helpers)
-- **Total**: ~137 lines ✅ **PASS** (≤400)
-
-**TDD Ownership (RED → GREEN → REFACTOR)**:
+**TDD Ownership (RED → GREEN → TRIANGULATE)**:
 
 **RED Tests** (written first, fail before implementation):
-- Test 13 will FAIL (no audit event emitted yet)
-- Test 14 will FAIL (need to verify fail-closed semantics)
+- Transport rejection audit tests FAIL (no `transportRejectionReason` support yet)
+- Validation tests FAIL (no `TransportRejectedEvent` variant yet)
 
 **GREEN Implementation**:
-- Add `TLS_SESSION_RESUMED` to contracts and audit mappings
-- Add try/catch audit recording in resumption check
-- Tests 13-14 now PASS
+- Add `TransportRejectionReason` type and vocabulary
+- Extend `SecurityAuditEvent` union with `TransportRejectedEvent`
+- Update `createSecurityAuditEvent` validation
+- Add `auditSink` config field and helper function
+- Wire audit call in `secureConnection` listener (AFTER destroy)
+- All tests now PASS
+
+**TRIANGULATE**:
+- ✅ Exactly-one audit event per resumed rejection
+- ✅ Event structure correct (category, result, transportRejectionReason)
+- ✅ Fresh connections produce no transport rejection audit
+- ✅ Sink failure/undefined/throwing doesn't weaken rejection
+- ✅ r1 proofs remain green (HTTP=0, Upgrade=0, product=0)
+- ✅ Real resumed TLS path verified (reuse r1 comparator)
 
 **Coverage Proven**:
-- ✅ Audit events are emitted when resumption is rejected
-- ✅ Audit event structure is correct (category, result, code)
-- ✅ Audit recording failure does NOT prevent socket destruction
-- ✅ Fail-closed semantics are preserved
+- ✅ Audit events emitted for transport-layer resumption rejection
+- ✅ Event uses transport-specific reason (NOT wire protocol code)
+- ✅ Audit happens AFTER synchronous destroy (fail-secure)
+- ✅ Audit failure cannot fail open (socket already destroyed)
+- ✅ No TLS session material in audit output
+- ✅ No fabricated identity fields (linkId/installationId/etc.)
 
 **Dependencies**:
 - **Requires**: PR-08B1a2a1r1 (enforcement gate must exist before adding audit)
 - **Baseline**: PR-08B1a2a1r1 merged commit
 
-**Security Guarantee**: Audit integration does NOT weaken the enforcement gate from Slice 1. Socket is destroyed regardless of audit success/failure.
+**Security Guarantee (Option B)**: 
+- r1 enforcement (synchronous destroy) remains authoritative and unchanged
+- r2 audit (async observability) happens AFTER rejection is complete
+- Audit sink failure/absence cannot cause connection acceptance
+- Wire protocol vocabulary (`RejectionCode`) unchanged - no semantic expansion
+- Transport-layer audit vocabulary cleanly separated from application-layer protocol
+
+**Architect Ratification**: sdd-design (anthropic/claude-sonnet-4-5) APPROVED Option B (2026-09-29)
+**Independent Review**: gentle-ai-verify (gemini-3.1-pro) APPROVED Option B (2026-09-29)
 
 ---
 
