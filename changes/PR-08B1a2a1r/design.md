@@ -1428,7 +1428,9 @@ The server-side `isSessionReused()` gate rejects ALL resumed sessions, regardles
 - [x] Experimental validation completed
 - [x] Architecture design completed (PR-08B1a2a1r design phase)
 - [ ] Production implementation (PR-08B1a2a1r implementation phase)
-- [ ] Independent review (Gemini 3.1 Pro sdd-verify)
+- [x] Independent review (gentle-ai-verify / gemini-3.1-pro) 
+not APPROVE 
+not
 - [ ] Merged to master
 
 ## Open Related Requirements
@@ -1460,7 +1462,9 @@ This PR does NOT implement:
 ```markdown
 ## Session Resumption (Policy A)
 
-**Status**: IMPLEMENTED (PR-08B1a2a1r)
+**Status**: DESIGN APPROVED / IMPLEMENTATION NOT STARTED  
+**Slice 1**: PR-08B1a2a1r1 (ready for implementation)  
+**Slice 2**: PR-08B1a2a1r2 (planned, depends on r1)
 
 **Requirement**: Server MUST reject all TLS session resumption attempts.
 
@@ -1565,11 +1569,13 @@ None. Ready for independent re-review after remediation.
 
 ## PHASE 10 — INDEPENDENT REVIEW PREPARATION
 
-### 10.1 Summary for sdd-verify (Gemini 3.1 Pro)
+### 10.1 Independent Review Summary
 
 **Review Request**: Independent architectural review of TLS session resumption rejection design (Policy A).
 
-**Reviewer**: Gemini 3.1 Pro (via `sdd-verify` phase)
+**Reviewer**: gentle-ai-verify (antigravity/gemini-3.1-pro)  
+**Verdict**: APPROVE 
+not (post-remediation re-review)
 
 **Scope**: Challenge design for structural soundness, security guarantees, and scope discipline.
 
@@ -1859,13 +1865,22 @@ git diff master origin/master  # Should be empty
 
 **None**. Design is remediated and ready for independent re-review.
 
-### Next Phase
+### Independent Review Complete
 
-**sdd-verify** (independent re-review by Gemini 3.1 Pro)
+**Reviewer**: gentle-ai-verify (antigravity/gemini-3.1-pro)  
+**Verdict**: **APPROVE** 
+not
 
-**Success Criteria**: Gemini verifies two-slice decomposition resolves size gate breach while respecting TDD policy.
+**Verified**:
+- Size gate breach resolved (both slices 
+not400)
+- TDD policy respected (tests ship with production responsibilities)
+- Non-weakening guarantee valid
+- All structural/security findings remain PASS
 
-**Only After Approval**: Proceed to implementation of Slice 1 (PR-08B1a2a1r1), then Slice 2 (PR-08B1a2a1r2).
+**Implementation Status**: NOT STARTED
+
+**Next**: Proceed to implementation of Slice 1 (PR-08B1a2a1r1), then Slice 2 (PR-08B1a2a1r2).
 
 ---
 
@@ -1906,10 +1921,11 @@ TDD plan uses real TLS session resumption (not mocks alone) to provide structura
 
 ## DESIGN DOCUMENT END
 
-**Author**: SDD Design Phase Executor  
-**Reviewer**: (Awaiting Gemini 3.1 Pro sdd-verify)  
-**Status**: READY FOR INDEPENDENT REVIEW  
-**Next Action**: Parent invokes `sdd-verify` with this design document
+**Author**: SDD Design Phase Executor (sdd-design / anthropic/claude-sonnet-4-5)  
+**Reviewer**: gentle-ai-verify (antigravity/gemini-3.1-pro)  
+**Verdict**: **APPROVE** ✅  
+**Status**: DESIGN APPROVED / IMPLEMENTATION NOT STARTED  
+**Next Action**: Begin implementation of PR-08B1a2a1r1 (Structural Policy-A Resumption Rejection)
 
 ---
 
