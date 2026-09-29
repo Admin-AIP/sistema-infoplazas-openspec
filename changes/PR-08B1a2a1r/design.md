@@ -1427,11 +1427,18 @@ The server-side `isSessionReused()` gate rejects ALL resumed sessions, regardles
 - [x] Policy A approved
 - [x] Experimental validation completed
 - [x] Architecture design completed (PR-08B1a2a1r design phase)
-- [ ] Production implementation (PR-08B1a2a1r implementation phase)
-- [x] Independent review (gentle-ai-verify / gemini-3.1-pro) 
-not APPROVE 
-not
-- [ ] Merged to master
+- [x] **PR-08B1a2a1r1: Structural enforcement CLOSED/INTEGRATED** (commit b680e5c)
+  - Production: 19 lines
+  - Tests: 242 net lines (10 tests PASS)
+  - Size: 261 total ✅ <400
+  - Independent review: gentle-ai-verify (antigravity/gemini-3.1-pro) APPROVE
+  - Security proof: Real TLS 1.3 resumption detected and rejected
+  - Merged to master: 2026-09-29
+- [ ] **PR-08B1a2a1r2: Audit integration** (ready for preflight)
+  - Forecast: ~137 lines
+  - Scope: TLS_SESSION_RESUMED audit vocabulary, safe metadata only
+  - Status: NEXT
+- [x] Merged to master (r1)
 
 ## Open Related Requirements
 
