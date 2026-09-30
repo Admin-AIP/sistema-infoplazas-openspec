@@ -1509,4 +1509,169 @@ it('rejects resumed TLS session (Policy A) before upgrade attempt', async () => 
 
 ---
 
+## FINAL PRE-TDD ARCHITECTURE AUTHORITY
+
+**Status**: APPROVED — READY FOR SPLIT IMPLEMENTATION
+
+**Architect**: `sdd-design` — `anthropic/claude-sonnet-4-5` HIGH, Direct Anthropic — APPROVE
+
+**Independent review**: `gentle-ai-verify` — `antigravity/gemini-3.1-pro` HIGH — APPROVE
+
+This section supersedes every earlier conflicting size forecast, single-slice delivery recommendation, start transition, and shutdown ordering in this document.
+
+### Final Size Accounting
+
+The dependency cost was measured from a clean Dinamizador worktree based on `4cc81696b0b8f9de4868029f54b7abbb9197b9ae`:
+
+| Area | Net lines |
+| --- | ---: |
+| Production/source forecast | 165 |
+| Tests forecast | 247 |
+| `apps/desktop/package.json` | 2 |
+| `package-lock.json` | 33 |
+| Dependencies total | 35 |
+| **Combined unsplit forecast** | **447** |
+
+The lockfile contains no unrelated churn. The previous 364/372-line forecasts omitted or undercounted final lifecycle work and dependency lockfile lines and are superseded.
+
+The combined 447-line candidate lies in the 401–450 explicit-cohesion-exception range. No cohesion exception is requested or assumed. The previously proposed single-slice delivery is **SUPERSEDED** by the semantic split below.
+
+### Delivery Order
+
+#### PR-08B1a2a2a — WSS Validation Primitives & Dependencies
+
+**Order**: FIRST
+
+**Forecast**: approximately 185 net lines (60 source + 90 tests + 35 dependencies)
+
+**Dependency**: None
+
+Scope:
+
+- Add `ws` as a runtime dependency and `@types/ws` as a development dependency.
+- Update `package-lock.json` without unrelated dependency churn.
+- Add pure `containsToken()` validation with comma-separated, trimmed, case-insensitive exact-token semantics.
+- Add pure `validateUpgradeRequest()` validation for `GET`, `websocket`, `upgrade`, and WebSocket version `13`.
+- Keep `Sec-WebSocket-Key` validation explicitly delegated to `ws.handleUpgrade()`.
+- Add `validatePeerCertificateDates(peerCert, now?)` as a defensive adapter over `validateCertificateDates()`.
+- Reject missing or unparseable peer certificate dates without silently accepting them.
+- Preserve the existing Level A certificate-date validator tests.
+- Add Level B synthetic `PeerCertificate` adapter tests and header/token tests.
+
+Safety boundary:
+
+- No `WebSocketServer` instance.
+- No HTTPS `upgrade` listener.
+- No `handleUpgrade()` call.
+- No accepted WebSocket client.
+- No gateway lifecycle behavior change.
+- No production TLS weakening or test-only production flag.
+
+This slice is independently safe to merge because it introduces validation primitives and dependencies but no active WSS behavior.
+
+#### PR-08B1a2a2b — WSS Integration & Safe Gateway Lifecycle
+
+**Order**: SECOND
+
+**Forecast**: approximately 262 net lines (105 source + 157 tests)
+
+**Dependency**: PR-08B1a2a2a integrated first
+
+Scope:
+
+- Instantiate `WebSocketServer({ noServer: true })`.
+- Add the HTTPS `upgrade` hook and call `ws.handleUpgrade()` only after every transport check succeeds.
+- Integrate the a2a temporal and HTTP Upgrade validators.
+- Introduce explicit active-WebSocket ownership.
+- Introduce lifecycle state and safe failed-start rollback.
+- Stop new acceptance immediately during shutdown.
+- Terminate every owned WebSocket deterministically.
+- Close WSS and HTTPS resources and prove isolated restart behavior.
+- Add real TLS/WSS integration tests and lifecycle tests.
+
+The first active WebSocket acceptance lands atomically with the lifecycle guarantees below. No intermediate merge may accept WebSockets while retaining unsafe or incomplete shutdown behavior.
+
+### Final Transport Ordering
+
+```text
+TLS 1.3
+→ mTLS authorization
+→ Policy A fresh-session enforcement
+→ peer-certificate temporal adapter
+→ HTTP Upgrade validation
+→ ws.handleUpgrade()
+→ WebSocket accepted
+```
+
+Secure-link negotiation, FSM `ACTIVE`, message handling, and product actions remain deferred.
+
+### Failed-Start Contract
+
+The gateway does not need a public `STARTING` state. Setup may accumulate in local temporary references while the externally observable lifecycle remains `STOPPED`.
+
+`RUNNING` is assigned only after:
+
+1. `listen()` succeeds; and
+2. the bound address resolves successfully.
+
+Any start failure must:
+
+- reject `start()` with the original failure;
+- remove partial listeners and close partial HTTPS/WSS resources on a best-effort basis;
+- leave `lifecycleState = STOPPED`;
+- leave `server = null`;
+- leave `wss = null`;
+- leave `boundAddress = null`;
+- leave the owned active-WebSocket set empty;
+- permit a subsequent valid `start()`.
+
+Cleanup failure must never publish `RUNNING` or leave a partially eligible gateway.
+
+Required TDD evidence includes occupied-port/listen failure, rejected start, null address and clean stopped state, no retained WSS/client resources, and a successful subsequent start without arbitrary-delay correctness checks.
+
+### Final Shutdown Contract
+
+`stop()` follows this order:
+
+1. Set `lifecycleState = SHUTTING_DOWN` first.
+2. Capture current HTTPS server and WSS references locally.
+3. Initiate HTTPS `server.close()` immediately and retain its completion promise. This is the acceptance barrier for new TCP/HTTP connections.
+4. Keep transport and security listeners installed for already in-flight sockets.
+5. Reject every in-flight Upgrade attempt when lifecycle state is not `RUNNING`.
+6. Call `ws.terminate()` for every tracked WebSocket and clear the owned set.
+7. Close the `WebSocketServer`.
+8. Await HTTPS server-close completion.
+9. Remove/reset remaining listeners and references only after shutdown completion.
+10. Set `server = null`, `wss = null`, `boundAddress = null`, keep the owned set empty, and finish at `STOPPED`.
+
+Removing listeners is not used as the mechanism for stopping TCP acceptance. No graceful-close timeout, retry loop, heartbeat, or other B1a2b policy is introduced. If close reports an error, no new upgrade can become eligible, active WebSockets have already been terminated, and lifecycle state must never return to `RUNNING`.
+
+Required TDD evidence includes immediate `SHUTTING_DOWN`, immediate acceptance stop, rejection of new WSS Upgrade attempts, termination of existing owned clients, zero surviving old clients when `stop()` resolves, and an isolated restart with exactly one fresh listener/connection path.
+
+### Temporal Validation Evidence Classification
+
+1. **Level A — pure validator**: Existing `validateCertificateDates()` tests prove before/exact `notBefore` and exact/after `notAfter` semantics.
+2. **Level B — adapter tests**: Synthetic `PeerCertificate`-shaped inputs prove Node date-time string parsing, missing/malformed rejection, deterministic `now`, and delegated temporal outcomes. These are not real TLS handshake tests.
+3. **Level C — real TLS/WSS integration**: A real valid client certificate proves the complete positive transport sequence. OpenSSL may reject a real expired or not-yet-valid certificate before HTTP Upgrade; in that case the valid claim is only zero WSS connections and zero `handleUpgrade()` calls.
+
+Production retains `rejectUnauthorized: true`. No test flag or weakened TLS configuration is permitted.
+
+### Preserved Scope Boundaries
+
+The split does not absorb:
+
+- PR-08B1a2b resource controls: connection limits, payload limits, idle timeouts, heartbeat, rate limiting, or backpressure;
+- B1b business identity mapping for installation, station, or center identities;
+- B1c secure-link composition, FSM activation, message processing, or product actions;
+- clock plausibility validation; or
+- physical certificate provisioning.
+
+`RejectionCode` and wire rejection vocabulary remain unchanged. Product actions remain zero.
+
+### Implementation Gate
+
+No RED or implementation work is part of this architecture ratification. Implementation begins with PR-08B1a2a2a only after this OpenSpec authority is committed and pushed.
+
+---
+
 **END OF CORRECTED ARCHITECTURE DESIGN**
