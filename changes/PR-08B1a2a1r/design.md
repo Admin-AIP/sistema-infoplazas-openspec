@@ -2025,3 +2025,121 @@ TDD plan uses real TLS session resumption (not mocks alone) to provide structura
 4. Structural exclusion proofs via handler invocation counting in tests provide stronger security validation than mock-based unit tests for networked security boundaries.
 5. Acknowledging bounded uncertainty in runtime characterization (0-RTT behavior) while proving security independence from unproven assumptions maintains both honesty and rigor in security architecture documentation.
 6. Mandatory size gate splits can respect TDD policy by identifying architectural seams where production responsibilities are genuinely separable and their corresponding tests can ship independently without weakening prior enforcement guarantees.
+
+---
+
+## IMPLEMENTATION DECOMPOSITION — SIZE GATE
+
+**Date**: 2025-01-29  
+**Trigger**: ADA size policy (>450 lines requires split)
+
+### Original Plan
+
+**PR-08B1a2a1r2**: Single implementation slice combining:
+- Transport audit vocabulary (TransportRejectionReason)
+- SecurityAuditEvent extension
+- TLS gateway audit integration
+- Comprehensive TDD proofs
+
+**Actual Size**: 586 net lines (production + tests)
+- Exceeds 450-line mandatory split threshold
+- Cohesion exception not applicable (>450)
+
+### Mandatory Semantic Split
+
+#### **PR-08B1a2a1r2a: Transport Audit Model**
+
+**Base**: `b680e5c3d94ca57b566d1b8cbd7512aa54e706ae` (Dinamizador master)
+
+**Scope**:
+- `TRANSPORT_REJECTION_REASONS` constant: `['TLS_SESSION_RESUMED']`
+- `TransportRejectionReason` type
+- `TransportRejectedEvent` discriminated union member
+- `createSecurityAuditEvent` validation:
+  - Mutual exclusion: `rejectionCode` XOR `transportRejectionReason`
+  - Category invariant: `AUTHENTICATION` required
+  - Result invariant: `REJECTED` required
+  - Unknown reason rejection
+- Structural allowlist (strips sensitive fields)
+- Audit model validation tests
+
+**Files**:
+- `apps/desktop/electron/security/secure-link/security-audit.ts`
+- `apps/desktop/test/main/security/secure-link/security-audit.test.ts`
+
+**Unchanged**:
+- `contracts.ts` (no wire protocol changes)
+- `tls-gateway.ts` (no integration yet)
+- Secure-link `RejectionCode` count: 15
+- `LinkRejectPayload` unchanged
+
+**Estimated Size**: ~110 net lines ✅ <400
+
+---
+
+#### **PR-08B1a2a1r2b: TLS Resumption Audit Wiring**
+
+**Dependency**: r2a integrated first  
+**Base**: Dinamizador master AFTER r2a integration
+
+**Scope**:
+- Optional `SecurityAuditSink` in `TlsGatewayConfig`
+- `recordTransportRejectionAudit` helper (fire-and-forget)
+- Production integration:
+  - Synchronous `socket.destroy()` FIRST (r1 unchanged)
+  - Async audit AFTER rejection
+  - Exactly one `TLS_SESSION_RESUMED` event per resumed rejection
+  - Fresh connections: zero audit events
+- Fail-closed proofs:
+  - Missing sink: safe
+  - `UNAVAILABLE` sink: safe
+  - Throwing sink: safe
+  - Rejected Promise sink: safe
+- Real TLS 1.3 session resumption proof
+- HTTP/Upgrade/product action boundaries remain 0
+
+**Files**:
+- `apps/desktop/electron/security/transport/tls-gateway.ts`
+- `apps/desktop/test/main/security/transport/tls-gateway.test.ts`
+
+**Test Strategy**:
+- Test-only comparator omits `SSL_OP_NO_TICKET` to enable real resumption
+- Comparator invokes SAME production security/audit path
+- **NO production test-mode flag**
+- **NO production TLS weakening**
+
+**Estimated Size**: ~200-250 net lines ✅ <400
+
+---
+
+### Security Invariants Preserved
+
+- ✅ Policy A enforcement unchanged (r1 structural rejection)
+- ✅ Option B architecture unchanged (separate transport vocabulary)
+- ✅ Wire protocol unchanged (15 RejectionCode values)
+- ✅ LinkRejectPayload unchanged
+- ✅ SSL_OP_NO_TICKET remains in production (defense-in-depth)
+- ✅ mTLS + TLS 1.3 only
+- ✅ Synchronous destroy before audit
+- ✅ Audit failure cannot fail open
+
+### Split Rationale
+
+**Why Split**:
+- Combined r2 implementation: 586 net lines
+- ADA policy: >450 requires mandatory split
+- No cohesion exception for >450
+
+**Why This Boundary**:
+- r2a: Self-contained audit model (vocabulary + validation)
+- r2b: Integration wiring (depends on r2a types)
+- Each slice independently testable
+- Each slice <400 lines
+- Natural architectural seam
+
+**Benefits**:
+- Smaller review units
+- Independent TDD verification per slice
+- r2a useful independently (audit model ready for future use)
+- r2b focused on integration only
+
