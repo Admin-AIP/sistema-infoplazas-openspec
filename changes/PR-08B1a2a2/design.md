@@ -1536,17 +1536,31 @@ The lockfile contains no unrelated churn. The previous 364/372-line forecasts om
 
 The combined 447-line candidate lies in the 401–450 explicit-cohesion-exception range. No cohesion exception is requested or assumed. The previously proposed single-slice delivery is **SUPERSEDED** by the semantic split below.
 
-### Delivery Order
+### Delivery Status
+
+**Parent PR-08B1a2a2**
+
+- **Status**: IN PROGRESS
+- **Implemented**: PR-08B1a2a2a CLOSED / INTEGRATED
+- **Remaining**: PR-08B1a2a2b READY FOR IMPLEMENTATION
 
 #### PR-08B1a2a2a — WSS Validation Primitives & Dependencies
 
-**Order**: FIRST
+**Status**: CLOSED / INTEGRATED
 
-**Forecast**: approximately 185 net lines (60 source + 90 tests + 35 dependencies)
+**Integration record**:
 
-**Dependency**: None
+- **Dinamizador commit**: `1e1a11ea5b6d2ff5209ca673a639dd1877605202`
+- **Base**: `4cc81696b0b8f9de4868029f54b7abbb9197b9ae`
+- **Actual size**: 179 net lines
+- **Changed/churn**: 181 lines (180 additions + 1 deletion)
+- **Files**: `apps/desktop/electron/security/transport/tls-gateway.ts`; `apps/desktop/test/main/security/transport/tls-gateway.test.ts`; `apps/desktop/package.json`; `package-lock.json`
+- **Dependencies**: `ws` 8.22.0 (requested `^8.18.0`); `@types/ws` 8.18.2 (requested `^8.5.13`)
+- **Tests**: TLS gateway 44 PASS; certificate-validator 5 PASS; SecurityAudit 13 PASS; secure-link 97 PASS; main/security 146 PASS; typecheck PASS
+- **Independent implementation review**: `gentle-ai-verify`; `antigravity/gemini-3.1-pro`; HIGH; APPROVE
+- **Native review**: four lenses complete (review-risk, review-resilience, review-readability, review-reliability); one repeated-header-values blocker corrected within the authorized review budget; final result APPROVED
 
-Scope:
+Scope delivered:
 
 - Add `ws` as a runtime dependency and `@types/ws` as a development dependency.
 - Update `package-lock.json` without unrelated dependency churn.
@@ -1571,23 +1585,24 @@ This slice is independently safe to merge because it introduces validation primi
 
 #### PR-08B1a2a2b — WSS Integration & Safe Gateway Lifecycle
 
+**Status**: READY FOR IMPLEMENTATION
+
 **Order**: SECOND
 
-**Forecast**: approximately 262 net lines (105 source + 157 tests)
+**Forecast**: approximately 262 net lines
 
-**Dependency**: PR-08B1a2a2a integrated first
+**Exact dependency**: PR-08B1a2a2a integrated
 
-Scope:
+**Exact new Dinamizador base**: `1e1a11ea5b6d2ff5209ca673a639dd1877605202`
 
-- Instantiate `WebSocketServer({ noServer: true })`.
-- Add the HTTPS `upgrade` hook and call `ws.handleUpgrade()` only after every transport check succeeds.
-- Integrate the a2a temporal and HTTP Upgrade validators.
-- Introduce explicit active-WebSocket ownership.
-- Introduce lifecycle state and safe failed-start rollback.
-- Stop new acceptance immediately during shutdown.
-- Terminate every owned WebSocket deterministically.
-- Close WSS and HTTPS resources and prove isolated restart behavior.
-- Add real TLS/WSS integration tests and lifecycle tests.
+Scope remains:
+
+- `WebSocketServer({ noServer: true })` and an HTTPS upgrade hook.
+- Integrate the a2a validators and perform real WSS acceptance only after every transport check succeeds.
+- Lifecycle state and failed-start rollback.
+- Immediate shutdown acceptance barrier and active client tracking.
+- Deterministic `ws.terminate()` and restart isolation.
+- Real TLS/WSS integration tests.
 
 The first active WebSocket acceptance lands atomically with the lifecycle guarantees below. No intermediate merge may accept WebSockets while retaining unsafe or incomplete shutdown behavior.
 
@@ -1670,7 +1685,7 @@ The split does not absorb:
 
 ### Implementation Gate
 
-No RED or implementation work is part of this architecture ratification. Implementation begins with PR-08B1a2a2a only after this OpenSpec authority is committed and pushed.
+PR-08B1a2a2a is CLOSED / INTEGRATED. No a2b implementation is part of this status update. PR-08B1a2a2b begins only after this updated OpenSpec authority is committed and pushed.
 
 ---
 
