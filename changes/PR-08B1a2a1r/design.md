@@ -2221,3 +2221,88 @@ TDD plan uses real TLS session resumption (not mocks alone) to provide structura
 - `apps/desktop/electron/security/transport/tls-gateway.ts`
 - `apps/desktop/test/main/security/transport/tls-gateway.test.ts`
 
+
+---
+
+## PR-08B1a2a1r2a1 — CLOSED / INTEGRATED
+
+**Implementation**: Transport Audit Model Hardening  
+**Status**: ✅ CLOSED / INTEGRATED  
+**Dinamizador Commit**: `0b51f8fdef45592ccd85750ace3bb36f386f98a4`  
+**Base**: `77143cccf61d92066b0742d5dcfef06404a55924` (r2a)
+
+**Purpose**: Close two structural gaps found during post-r2a code inspection
+
+**Actual Size**: 82 net lines (17 production + 65 tests)
+
+**Files Changed**:
+- `apps/desktop/electron/security/secure-link/security-audit.ts` (+25-8 = 17 net)
+- `apps/desktop/test/main/security/secure-link/security-audit.test.ts` (+65)
+
+**Gaps Addressed**:
+
+### GAP 1: Identity Field Leakage
+**Problem**: TransportRejectedEvent spread generic BaseAuditEvent, allowing secure-link identity fields (linkId, installationId, stationId, centerId, sourceId, protocolVersion, payloadSchemaVersion) to survive into transport rejection output.
+
+**Fix**: 
+- Type: `TransportRejectedEvent` now uses `Pick<BaseAuditEvent, 'eventId' | 'timestamp' | 'capabilities'>` + explicit `never` for forbidden fields
+- Runtime: Event construction uses only approved transport fields
+- Verification: linkId assignment causes TS2322 type error
+
+**Transport event output keys (exact 6)**:
+- eventId, timestamp, category, result, capabilities, transportRejectionReason
+
+### GAP 2: Non-REJECTED Transport Reason
+**Problem**: transportRejectionReason accepted with SUCCESS, FAILED, or INVALIDATED results.
+
+**Fix**:
+- Global conflict check: `rejectionCode` XOR `transportRejectionReason` enforced early
+- Result validation: `transportRejectionReason` valid ONLY for `REJECTED` result
+- Rejects: SUCCESS/FAILED/INVALIDATED + transportRejectionReason
+
+**Security Properties Preserved**:
+- ✅ 15 RejectionCode values unchanged
+- ✅ LinkRejectPayload unchanged
+- ✅ TLS gateway untouched (no r2b leakage)
+- ✅ Wire protocol unchanged
+
+**Test Results**:
+- SecurityAudit: 13 tests PASS (11 baseline + 2 r2a1)
+- secure-link regression: 97 tests PASS
+- TypeScript: PASS
+
+**Independent Review**:
+- **Reviewer**: gentle-ai-verify (antigravity/gemini-3.1-pro HIGH)
+- **Verdict**: APPROVE (after resolving 2 type-system blockers)
+- **Verification**: Both structural boundaries closed (type + runtime)
+
+**Integration**:
+- Method: Fast-forward push
+- Force: NO
+- Resulting origin/master: `0b51f8fdef45592ccd85750ace3bb36f386f98a4`
+
+---
+
+## PR-08B1a2a1r2b — READY FOR IMPLEMENTATION
+
+**Implementation**: TLS Resumption Audit Wiring  
+**Status**: ✅ READY FOR IMPLEMENTATION  
+**Dependencies**: 
+- ✅ r2a integrated at `77143cccf61d92066b0742d5dcfef06404a55924`
+- ✅ r2a1 integrated at `0b51f8fdef45592ccd85750ace3bb36f386f98a4`
+
+**New Base**: `0b51f8fdef45592ccd85750ace3bb36f386f98a4` (Dinamizador master AFTER r2a1)
+
+**Scope**: (unchanged from split decomposition)
+- Optional `SecurityAuditSink` in `TlsGatewayConfig`
+- `recordTransportRejectionAudit` helper
+- Production integration (r1 destroy FIRST, audit AFTER)
+- Exactly-once emission proof
+- Fail-closed proofs (missing/unavailable/throwing/rejected sink)
+- Real TLS 1.3 session resumption proof
+- Test-only comparator (omits `SSL_OP_NO_TICKET`)
+- **NO production test-mode flag**
+- **NO production TLS weakening**
+
+**Estimated Size**: ~200-250 net lines (<400 gate)
+
