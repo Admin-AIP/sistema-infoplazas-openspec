@@ -2306,3 +2306,180 @@ TDD plan uses real TLS session resumption (not mocks alone) to provide structura
 
 **Estimated Size**: ~200-250 net lines (<400 gate)
 
+
+---
+
+## PR-08B1a2a1r2b — CLOSED / INTEGRATED
+
+**Implementation**: TLS Resumption Audit Wiring  
+**Status**: ✅ CLOSED / INTEGRATED  
+**Dinamizador Commit**: `4cc81696b0b8f9de4868029f54b7abbb9197b9ae`  
+**Base**: `0b51f8fdef45592ccd85750ace3bb36f386f98a4` (r2a1)
+
+**Purpose**: Final slice of Policy A resumption audit — wire TLS resumption detection to transport rejection audit
+
+**Actual Size**: 313 net lines (27 production + 286 tests)
+
+**Files Changed**:
+- `apps/desktop/electron/security/transport/tls-gateway.ts` (+29-2 = 27 net)
+- `apps/desktop/test/main/security/transport/tls-gateway.test.ts` (+286-0 = 286 net)
+
+**Production Integration**:
+
+Extended `enforceFreshTlsConnection(tlsSocket, auditSink?)` with optional `SecurityAuditSink`:
+1. Synchronous `socket.destroy()` FIRST (r1 enforcement unchanged)
+2. Asynchronous audit dispatch AFTER destruction (fire-and-forget)
+3. Fresh TLS path produces zero transport rejection audits
+
+`TlsGatewayConfig` gains optional `auditSink?: SecurityAuditSink` field.
+
+Production gateway and test comparator use SAME integration path.
+
+**Transport Audit Event (exact 6 fields)**:
+- `eventId` (generated via crypto.randomUUID())
+- `timestamp` (ISO 8601 UTC)
+- `category: 'AUTHENTICATION'`
+- `result: 'REJECTED'`
+- `capabilities: []`
+- `transportRejectionReason: 'TLS_SESSION_RESUMED'`
+
+**Security Properties Verified**:
+- ✅ `isSessionReused()` → `destroy()` → audit (no await before destroy)
+- ✅ Resumed socket rejected FIRST, audit cannot weaken rejection
+- ✅ Missing sink (undefined) fails closed
+- ✅ UNAVAILABLE sink fails closed
+- ✅ Throwing sink fails closed
+- ✅ Rejected Promise sink fails closed
+- ✅ Exactly one audit per resumed TLS connection
+- ✅ Fresh connection produces zero transport rejection audits
+- ✅ SSL_OP_NO_TICKET production defense-in-depth preserved
+- ✅ No production test flag (_testOnlyEnableResumption forbidden)
+
+**Test Coverage**: 16 tests PASS (10 r1 baseline + 6 r2b)
+- Real TLS 1.3 session resumption proof (test comparator omits SSL_OP_NO_TICKET)
+- Exactly-one audit per resumed connection
+- Fresh connection zero audits
+- 4 fail-closed sink scenarios (missing/UNAVAILABLE/throwing/rejected Promise)
+
+**Regression Results**:
+- TLS gateway: 16 tests PASS
+- SecurityAudit: 13 tests PASS
+- secure-link: 97 tests PASS
+- certificate-validator: 5 tests PASS (B1a1 temporal validation baseline)
+- TypeScript: PASS
+
+**Independent Review**:
+- **Reviewer**: gentle-ai-verify (antigravity/gemini-3.1-pro HIGH)
+- **Verdict**: APPROVE
+- **Verification**: All 17 security invariants verified
+
+**Integration**:
+- Method: Fast-forward push
+- Force: NO
+- Resulting origin/master: `4cc81696b0b8f9de4868029f54b7abbb9197b9ae`
+
+---
+
+## PR-08B1a2a1r2 — CLOSED / IMPLEMENTED
+
+**Implementation**: Transport Audit Integration (TLS Resumption)  
+**Status**: ✅ CLOSED / IMPLEMENTED  
+
+**Scope**: Transport-layer audit vocabulary and wiring for Policy A resumed TLS rejection
+
+**Implemented Through Three Slices**:
+
+### r2a: Transport Audit Model
+- **Commit**: `77143cccf61d92066b0742d5dcfef06404a55924`
+- **Size**: 128 net lines (47 production + 81 tests)
+- **Scope**: Separate `TransportRejectionReason` vocabulary and `TransportRejectedEvent` union member
+
+### r2a1: Transport Audit Model Hardening
+- **Commit**: `0b51f8fdef45592ccd85750ace3bb36f386f98a4`
+- **Size**: 82 net lines (17 production + 65 tests)
+- **Scope**: Close two structural gaps (identity field leakage + non-REJECTED transport reason)
+
+### r2b: TLS Resumption Audit Wiring
+- **Commit**: `4cc81696b0b8f9de4868029f54b7abbb9197b9ae`
+- **Size**: 313 net lines (27 production + 286 tests)
+- **Scope**: Integrate audit sink into `enforceFreshTlsConnection` and production gateway
+
+**Combined Total**: 523 net lines (91 production + 432 tests)
+
+**Final Architecture**: Option B (separate transport vocabulary)
+- Wire protocol `RejectionCode`: 15 values (unchanged)
+- Transport audit `TransportRejectionReason`: `['TLS_SESSION_RESUMED']`
+- Security order: detect resumed → destroy synchronously → audit asynchronously
+
+**Reason for Split**: Combined r2 implementation reached 586 lines (>450 mandatory split threshold). Semantic decomposition: model definition (r2a/r2a1) → model integration (r2b).
+
+---
+
+## PR-08B1a2a1r — IMPLEMENTED / CLOSED
+
+**Implementation**: Policy A — TLS Session Resumption Rejection  
+**Status**: ✅ IMPLEMENTED / CLOSED (SERVER-SIDE SCOPE)
+
+**Scope**: Detect and reject every resumed TLS connection before HTTP/Upgrade/application logic
+
+**Implemented Through Two Major Slices**:
+
+### r1: Structural Enforcement
+- **Commit**: `b680e5c3d94ca57b566d1b8cbd7512aa54e706ae`
+- **Size**: 261 net lines (19 production + 242 tests)
+- **Scope**: `enforceFreshTlsConnection` synchronous rejection at `secureConnection` boundary
+
+### r2: Transport Audit Integration
+- **Commits**: r2a (`77143cc`), r2a1 (`0b51f8f`), r2b (`4cc8169`)
+- **Size**: 523 net lines (91 production + 432 tests)
+- **Scope**: Transport rejection audit vocabulary and async fire-and-forget audit dispatch
+
+**Combined Total**: 784 net lines (110 production + 674 tests)
+
+**Final Security Model**:
+1. TLS 1.3 only (minVersion/maxVersion)
+2. mTLS required (requestCert: true, rejectUnauthorized: true)
+3. Private project CA (trustedCA)
+4. Session resumption rejected (`isSessionReused()` → synchronous `destroy()`)
+5. Defense-in-depth: `SSL_OP_NO_TICKET` (production server config)
+6. Transport rejection audited (fire-and-forget, fail-closed)
+
+**Wire Protocol**: 15 `RejectionCode` values unchanged (no transport expansion)
+
+**Out of Scope** (preserved for future work):
+- WSS upgrade handling (B1a2a2)
+- Usuario PC client TLS 1.3 configuration
+- Usuario PC no-cache follow-up
+- Clock plausibility validation
+- X.509 business identity encoding
+- Physical certificate provisioning
+- Durable audit sink
+
+**Independent Reviews**: 
+- r1: gemini-3.1-pro APPROVE
+- r2a: gemini-3.1-pro APPROVE
+- r2a1: gemini-3.1-pro APPROVE (after resolving 2 type blockers)
+- r2b: gemini-3.1-pro APPROVE (17/17 invariants)
+
+**Integration**: All slices fast-forward merged to master
+
+---
+
+## Next Transport Work
+
+**Status**: NOT STARTED
+
+After Policy A closure, the next planned transport slice is:
+
+**PR-08B1a2a2: WSS Upgrade / Gateway Lifecycle**
+
+Dependencies:
+- ✅ Policy A structural enforcement (r1)
+- ✅ Policy A audit integration (r2)
+- ⏸️ B1b blocked pending X.509 business identity decision
+
+Open Prerequisites:
+- Clock plausibility validation
+- X.509 business identity encoding
+- Server certificate provisioning strategy
+
