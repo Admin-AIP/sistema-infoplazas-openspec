@@ -2143,3 +2143,81 @@ TDD plan uses real TLS session resumption (not mocks alone) to provide structura
 - r2a useful independently (audit model ready for future use)
 - r2b focused on integration only
 
+
+---
+
+## PR-08B1a2a1r2a — CLOSED / INTEGRATED
+
+**Implementation**: Transport Audit Model  
+**Status**: ✅ CLOSED / INTEGRATED  
+**Dinamizador Commit**: `77143cccf61d92066b0742d5dcfef06404a55924`  
+**Base**: `b680e5c3d94ca57b566d1b8cbd7512aa54e706ae`
+
+**Actual Size**: 128 net lines (47 production + 81 tests)
+
+**Files Changed**:
+- `apps/desktop/electron/security/secure-link/security-audit.ts` (+47 net)
+- `apps/desktop/test/main/security/secure-link/security-audit.test.ts` (+81 net)
+
+**Security Properties Verified**:
+- ✅ `TRANSPORT_REJECTION_REASONS = ['TLS_SESSION_RESUMED']`
+- ✅ `TransportRejectionReason` type exported
+- ✅ `TransportRejectedEvent` union member added
+- ✅ Category invariant: `AUTHENTICATION` required
+- ✅ Result invariant: `REJECTED` required
+- ✅ Mutual exclusion: `rejectionCode` XOR `transportRejectionReason`
+- ✅ Structural allowlist: sensitive fields dropped
+- ✅ Wire protocol unchanged: 15 `RejectionCode` values preserved
+- ✅ `REJECTION_AUDIT_OUTCOMES` count remains 15
+- ✅ `LinkRejectPayload` unchanged
+- ✅ `TLS_SESSION_RESUMED` remains audit-only (NOT in wire protocol)
+
+**Test Results**:
+- SecurityAudit: 11 tests PASS (6 baseline + 5 r2a)
+- secure-link regression: 95 tests PASS
+- TypeScript: PASS
+
+**Independent Implementation Review**:
+- **Reviewer**: gentle-ai-verify
+- **Provider/Model**: antigravity/gemini-3.1-pro (HIGH)
+- **Verdict**: **APPROVE**
+- **Verification**: All 12 security invariants confirmed
+
+**Integration**:
+- Method: Fast-forward push
+- Force: NO
+- Resulting origin/master: `77143cccf61d92066b0742d5dcfef06404a55924`
+
+---
+
+## PR-08B1a2a1r2b — NEXT
+
+**Implementation**: TLS Resumption Audit Wiring  
+**Status**: 🔜 READY FOR IMPLEMENTATION PREFLIGHT  
+**Dependency**: ✅ r2a integrated at `77143cccf61d92066b0742d5dcfef06404a55924`  
+**New Base**: `77143cccf61d92066b0742d5dcfef06404a55924` (Dinamizador master AFTER r2a)
+
+**Scope** (from split decomposition):
+- Optional `SecurityAuditSink` in `TlsGatewayConfig`
+- `recordTransportRejectionAudit` helper (fire-and-forget)
+- Production integration:
+  - r1 synchronous `socket.destroy()` FIRST (unchanged)
+  - Async audit AFTER rejection
+  - Exactly one `TLS_SESSION_RESUMED` event per resumed rejection
+- Fail-closed proofs:
+  - Missing sink: safe
+  - `UNAVAILABLE` sink: safe
+  - Throwing sink: safe
+  - Rejected Promise sink: safe
+- Real TLS 1.3 session resumption proof
+- Test-only comparator (omits `SSL_OP_NO_TICKET`)
+- **NO production test-mode flag**
+- **NO production TLS weakening**
+- HTTP/Upgrade/product action boundaries remain 0
+
+**Estimated Size**: ~200-250 net lines (<400 gate)
+
+**Files**:
+- `apps/desktop/electron/security/transport/tls-gateway.ts`
+- `apps/desktop/test/main/security/transport/tls-gateway.test.ts`
+
