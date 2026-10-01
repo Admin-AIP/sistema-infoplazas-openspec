@@ -11,7 +11,7 @@
 2. Revisar el contrato normativo cruzado en
    [`specs/dinamizador-usuario-pc-secure-link/spec.md`](./specs/dinamizador-usuario-pc-secure-link/spec.md).
 3. Confirmar el límite de cero acciones de producto y la subdivisión obligatoria.
-4. Ejecutar un preflight nuevo antes de la siguiente slice técnica: PR-08B1a2a1r.
+4. Ejecutar un preflight nuevo antes de la siguiente slice técnica: PR-08B1a2b.
 
 ## 1. Jerarquía y naturaleza de las decisiones
 
@@ -29,7 +29,7 @@ de **ARQUITECTURA TÉCNICA aprobadas**.
 ### Estado integrado autoritativo de PR-08
 
 Dinamizador `master == origin/master` está en
-`2b713ce450a295a996c8dad2b4b1d0957c6db99a`. PR-08A1 está CLOSED como A1a
+`eef27518862506a52f1f40dab5c870701d1be5d4`. PR-08A1 está CLOSED como A1a
 `83fd2fc4a57f469c99fc36464a9a0af7084f70c0` + A1b
 `9216370ef4876d553e0acef18d16821ddcd11cee`. PR-08A2 está CLOSED como A2a
 `1dbd4eafaacf9b10f91b944b32a9451e699f43bf`, A2b
@@ -49,17 +49,52 @@ de producción + 197 de pruebas. Entrega base HTTPS, TLS 1.3-only, rechazo TLS
 exclusiva en CA privada del proyecto, pruebas de
 cliente confiable/ausente/no confiable, lifecycle y manejo de error runtime. Su
 evidencia es TLS 6/6, secure-link 90/90, security/main 101/101 y typecheck PASS.
-`SSL_OP_NO_TICKET` está configurado, pero **no prueba** ausencia de reanudación.
+`SSL_OP_NO_TICKET` está configurado, pero **no prueba** ausencia de reanudación
+(evidencia histórica de B1a2a1; resuelta después por Policy A, ver más abajo).
 
-B1a2a1r es NEXT / OPEN TECHNICAL SLICE; debe registrar evidencia de Node
-22/OpenSSL 3 ante material de evento/ticket TLS 1.3 observado sin diseñar una
-solución. B1a2a2 y B1a2b están PLANNED / NOT STARTED. B1b está PLANNED / BLOCKED
-por la codificación de identidad de negocio X.509; B1c está PLANNED / NOT
-STARTED. El `master` actual no contiene `ws`, WSS, HTTP Upgrade, resolución de
-reanudación, identidad de negocio, autorización de instalación/centro/deny,
-composición completa transporte-FSM, ACTIVE de producción ni acciones de
-producto. Las acciones de
-producto son **CERO** (`Product actions: ZERO`).
+**Policy A — resolución de reanudación TLS — está CLOSED / INTEGRATED**
+(B1a2a1r). Secuencia integrada: núcleo TLS B1a2a1
+`2b713ce450a295a996c8dad2b4b1d0957c6db99a`; rechazo de reanudación r1
+`b680e5c3d94ca57b566d1b8cbd7512aa54e706ae`; modelo de auditoría de transporte
+r2a `77143cccf61d92066b0742d5dcfef06404a55924`; endurecimiento de la frontera
+de auditoría r2a1 `0b51f8fdef45592ccd85750ace3bb36f386f98a4`; cableado de
+auditoría de reanudación r2b `4cc81696b0b8f9de4868029f54b7abbb9197b9ae`.
+Propiedad de seguridad: ADA no acepta una conexión de transporte TLS reanudada.
+Policy A no se reabre.
+
+**PR-08B1a2a2 está CLOSED / INTEGRATED**, dividido semánticamente. Capacidad
+final: transporte WSS seguro + lifecycle seguro del gateway.
+
+- **PR-08B1a2a2a — WSS Validation Primitives & Dependencies — CLOSED /
+  INTEGRATED**, commit `1e1a11ea5b6d2ff5209ca673a639dd1877605202`. Entrega la
+  dependencia `ws`, `@types/ws`, `containsToken()`, `validateUpgradeRequest()`
+  y `validatePeerCertificateDates()`. Revisión: native review APPROVED;
+  Gemini APPROVE.
+- **PR-08B1a2a2b — WSS Integration & Safe Gateway Lifecycle — CLOSED /
+  INTEGRATED**, commits `780ab0435c87aada50d537bbd4847dca560f2de1` y
+  `eef27518862506a52f1f40dab5c870701d1be5d4` (HEAD integrado). Entrega
+  `WebSocketServer({ noServer: true })`, integración de HTTPS Upgrade, WSS con
+  TLS 1.3 + mTLS, validación temporal y validación de HTTP Upgrade antes de
+  `handleUpgrade`, propiedad de WebSockets activos, rollback seguro de arranque
+  fallido, coordinación de stop durante start, terminación determinista de
+  clientes, aislamiento de restart y contención de frames malformados.
+  Revisión: Gemini APPROVE; revisión nativa en estado final
+  **ESCALATED — MAINTAINER OVERRIDE** (no aprobada, no superada y no limpia;
+  el detalle está en [`design.md` de PR-08B1a2a2](../PR-08B1a2a2/design.md)).
+
+**PR-08B1a2b — NEXT / PREFLIGHT REQUIRED / NOT STARTED.** Es control de
+recursos/hardening de transporte (límites de conexión, límites de payload, idle
+timeout, heartbeat, rate limiting y backpressure). Requiere un preflight fresco
+de arquitectura, alcance y tamaño ≤400 antes de cualquier implementación; no
+está lista para implementar. B1b está PLANNED / BLOCKED por la codificación de
+identidad de negocio X.509; B1c está PLANNED / NOT STARTED.
+
+El `master` actual contiene `ws`, WSS con TLS 1.3 + mTLS, integración de HTTP
+Upgrade y la resolución de reanudación TLS (Policy A). El `master` actual NO
+contiene —y permanecen ausentes o diferidos— controles de recursos B1a2b,
+identidad de negocio, autorización de instalación/centro/deny, composición
+completa transporte-FSM, ACTIVE de producción ni acciones de producto. Las
+acciones de producto son **CERO** (`Product actions: ZERO`).
 
 ## 2. Matriz de cierre de los nueve bloqueadores
 
@@ -152,10 +187,14 @@ capacidades ni privilegios heredados. Reemplazar el peer invalida inmediatamente
 el binding. TLS 1.3 early data/0-RTT queda deshabilitado. La reanudación TLS solo
 puede usarse si en cada conexión nueva se revalidan vigencia del certificado,
 identidad autenticada, registro autorizado, centro y deny local; si el stack no
-lo garantiza, se deshabilita la reanudación. La política permanece **OPEN**:
-B1a2a1 configuró `SSL_OP_NO_TICKET`, pero observó material de evento/ticket TLS
-1.3 bajo Node 22/OpenSSL 3 y no probó ausencia de reanudación. B1a2a1r debe
-resolver esta evidencia antes de afirmar conformidad.
+lo garantiza, se deshabilita la reanudación. La política quedó resuelta como
+**Policy A — CLOSED / INTEGRATED** (B1a2a1r): B1a2a1 configuró
+`SSL_OP_NO_TICKET`, pero observó material de evento/ticket TLS 1.3 bajo Node
+22/OpenSSL 3 sin probar ausencia de reanudación, por lo que Policy A rechaza
+estructuralmente toda conexión reanudada antes de cualquier procesamiento
+HTTP/Upgrade/WSS y audita el rechazo como evento de transporte.
+`SSL_OP_NO_TICKET` se conserva como defensa en profundidad. ADA no acepta una
+conexión de transporte TLS reanudada.
 
 ## 7. Negociación de aplicación exacta
 
@@ -271,9 +310,9 @@ integrado ni la descomposición actual:
 | PR-08B1a1 | 88 actual: 25 producción + 63 pruebas | CLOSED/INTEGRATED. |
 | PR-08B1a2a1f | 166 líneas de fixtures | CLOSED/INTEGRATED/PUSHED; TEST-ONLY. |
 | PR-08B1a2a1 | **299 actual: 102 producción + 197 pruebas** | CLOSED/INTEGRATED/PUSHED. |
-| PR-08B1a2a1r | Preflight fresco ≤400 | NEXT / OPEN TECHNICAL SLICE. |
-| PR-08B1a2a2 | Preflight fresco ≤400 | PLANNED / NOT STARTED: WSS core + HTTPS Upgrade. |
-| PR-08B1a2b | Preflight fresco ≤400 | PLANNED / NOT STARTED: resource controls/hardening separado. |
+| PR-08B1a2a1r | Sub-slices r1, r2a, r2a1 y r2b | CLOSED/INTEGRATED: Policy A (rechazo y auditoría de reanudación TLS). |
+| PR-08B1a2a2 | a2a 179 neto + a2b 367 neto | CLOSED/INTEGRATED: a2a (primitivas y dependencias WSS) + a2b (integración WSS y lifecycle seguro); cada hijo ≤400 neto. |
+| PR-08B1a2b | Preflight fresco ≤400 | NEXT / PREFLIGHT REQUIRED / NOT STARTED: resource controls/hardening separado. |
 | PR-08B1b | Planificación futura | PLANNED / BLOCKED por identidad X.509. |
 | PR-08B1c | Planificación futura | PLANNED / NOT STARTED. |
 | PR-08B2 | 170–220 forecast histórico | Depende de B1 completo. |
@@ -288,7 +327,7 @@ ocultar los tamaños reales de sus hijos.
 
 ```text
 Dinamizador:
-PR-02 integrado → A1 CLOSED → A2 CLOSED → B1a1 CLOSED → B1a2a1f CLOSED → B1a2a1 CLOSED → B1a2a1r NEXT/OPEN → B1a2a2 → B1a2b → B1b BLOCKED → B1c → B2 → PR-09 → PR-10 → PR-11
+PR-02 integrado → A1 CLOSED → A2 CLOSED → B1a1 CLOSED → B1a2a1f CLOSED → B1a2a1 CLOSED → B1a2a1r CLOSED → B1a2a2 CLOSED → B1a2b NEXT/PREFLIGHT REQUIRED → B1b BLOCKED → B1c → B2 → PR-09 → PR-10 → PR-11
 
 Usuario PC:
 PR-07B COMPLETE/integrado → freeze contractual PR-08A1/A2
@@ -307,9 +346,10 @@ PR-11 se exige conformidad cross-repo.
 **Readiness:** los nueve bloqueadores arquitectónicos originales permanecen
 cerrados, A1/A2 están cerrados y B1 está en progreso. No se crean worktrees
 umbrella PR-08A, PR-08B, PR-08B1 o PR-08U. La próxima slice técnica es
-B1a2a1r, solo tras preflight fresco y limitada a evidencia de reanudación. Las
-slices WSS/hardening posteriores no autorizan identidad, ACTIVE ni acciones de
-producto.
+B1a2b (control de recursos/hardening de transporte), solo tras un preflight
+fresco de arquitectura, alcance y tamaño ≤400; no está lista para implementar.
+Las slices de transporte, integradas o posteriores, no autorizan identidad,
+ACTIVE ni acciones de producto.
 
 ## 14. Riesgos y limitaciones aceptadas
 
@@ -319,8 +359,10 @@ producto.
   reloj local implausible impide nuevas conexiones ACTIVE.
 - El spike de storage todavía debe seleccionar adaptador y demostrar la
   no salida/exportación/copia de claves privadas.
-- La política TLS resumption permanece OPEN; `SSL_OP_NO_TICKET` no constituye
-  prueba de no-reanudación bajo la evidencia actual de Node 22/OpenSSL 3.
+- La política TLS resumption está resuelta (Policy A, CLOSED / INTEGRATED): se
+  rechazan las conexiones reanudadas. `SSL_OP_NO_TICKET` por sí solo no
+  constituye prueba de no-reanudación bajo Node 22/OpenSSL 3; se conserva como
+  defensa en profundidad.
 - La codificación X.509 de identidad de negocio y la provisión física del
   certificado/clave de servidor Dinamizador permanecen OPEN; no se inventan.
 - La plausibilidad del reloj local permanece OPEN aunque existan primitivas de
