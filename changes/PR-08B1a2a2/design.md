@@ -1540,9 +1540,13 @@ The combined 447-line candidate lies in the 401–450 explicit-cohesion-exceptio
 
 **Parent PR-08B1a2a2**
 
-- **Status**: IN PROGRESS
-- **Implemented**: PR-08B1a2a2a CLOSED / INTEGRATED
-- **Remaining**: PR-08B1a2a2b READY FOR IMPLEMENTATION
+- **Status**: CLOSED / INTEGRATED
+- **Implemented**: PR-08B1a2a2a CLOSED / INTEGRATED; PR-08B1a2a2b CLOSED / INTEGRATED
+- **Remaining**: none within PR-08B1a2a2
+
+**Final parent capability**: secure WSS transport integration + safe gateway lifecycle.
+
+**Non-claims**: this does NOT imply FSM ACTIVE, business identity authorization, resource hardening, or product actions.
 
 #### PR-08B1a2a2a — WSS Validation Primitives & Dependencies
 
@@ -1585,17 +1589,29 @@ This slice is independently safe to merge because it introduces validation primi
 
 #### PR-08B1a2a2b — WSS Integration & Safe Gateway Lifecycle
 
-**Status**: READY FOR IMPLEMENTATION
+**Status**: CLOSED / INTEGRATED
 
 **Order**: SECOND
 
-**Forecast**: approximately 262 net lines
+**Forecast**: original forecast approximately 262 net lines; actual size 367 net lines
 
 **Exact dependency**: PR-08B1a2a2a integrated
 
 **Exact new Dinamizador base**: `1e1a11ea5b6d2ff5209ca673a639dd1877605202`
 
-Scope remains:
+**Integration record**:
+
+- **Base**: `1e1a11ea5b6d2ff5209ca673a639dd1877605202`
+- **Implementation commits**: `780ab0435c87aada50d537bbd4847dca560f2de1` (feat: integrate secure WSS gateway lifecycle) and `eef27518862506a52f1f40dab5c870701d1be5d4` (fix: harden WSS startup rollback)
+- **Final integrated Dinamizador HEAD (origin/master)**: `eef27518862506a52f1f40dab5c870701d1be5d4`, integrated by normal fast-forward, no force
+- **Actual size**: 367 net lines — production 107, tests 260 (`tls-gateway.test.ts` 223 + `tls-gateway-startup.test.ts` 37), other 0
+- **Changed-line churn**: 481 (informational only; the ADA size gate metric is NET)
+- **Size policy**: PASS (<=400 net); no cohesion exception required
+- **Files**: `apps/desktop/electron/security/transport/tls-gateway.ts`; `apps/desktop/test/main/security/transport/tls-gateway.test.ts`; `apps/desktop/test/main/security/transport/tls-gateway-startup.test.ts`
+- **Unchanged**: `package.json`, `package-lock.json`, `certificate-validator.ts`, `security-audit.ts`, `contracts.ts`; `RejectionCode` remains 15; Policy A and `SSL_OP_NO_TICKET` preserved
+- **Tests**: TLS gateway 53 PASS; startup hardening 1 PASS; certificate-validator 5 PASS; SecurityAudit 13 PASS; secure-link 97 PASS; main/security 156 PASS; typecheck PASS
+
+Scope delivered:
 
 - `WebSocketServer({ noServer: true })` and an HTTPS upgrade hook.
 - Integrate the a2a validators and perform real WSS acceptance only after every transport check succeeds.
@@ -1605,6 +1621,36 @@ Scope remains:
 - Real TLS/WSS integration tests.
 
 The first active WebSocket acceptance lands atomically with the lifecycle guarantees below. No intermediate merge may accept WebSockets while retaining unsafe or incomplete shutdown behavior.
+
+**Review disposition**:
+
+- **Independent implementation review**: `gentle-ai-verify`; `antigravity/gemini-3.1-pro`; HIGH; APPROVE (final candidate eef2751, no findings).
+- **Native review final label**: `ESCALATED — MAINTAINER OVERRIDE`. Native review is NOT approved, NOT passed, and NOT clean for a2b; the maintainer explicitly authorized integration despite the terminal native escalation, and the override does not erase the escalations.
+- **Native lineage 1** `review-0e39319593ba6559` (candidate 780ab04): terminal `escalated` / `native_stop_required`. R3-001 REFUTED by the refuter. R3-002 (review-reliability, CRITICAL, inferential, unknown causality, unverified_location) was investigated and NOT REPRODUCED: ws 8.22.0 `handleUpgrade` -> `completeUpgrade` -> callback runs synchronously in one stack so `stop()` cannot interleave; `WebSocket.terminate()` destroys the socket and sends no close frame; ws installs socket error handling during the handshake; the cited source range did not match the described callback. No production change was made for R3-002.
+- **Native lineage 2** `review-bcb44a14dbd148d7` (candidate eef2751): terminal `escalated` / `native_stop_required`. The risk, resilience, and readability lenses reported no findings. Blocking finding R3-001 (review-reliability, CRITICAL, inferential, unknown causality, unverified_location) claimed a concurrent `stop()` could observe lifecycle SHUTTING_DOWN while `shutdownPromise` is already null and throw. NOT REPRODUCED / contradicted by the actual ordering: `lifecycle = 'STOPPED'` is assigned before `shutdownPromise = null`, synchronously in the same block with no await between them, so another `stop()` cannot interleave; the reliability lens itself acknowledged this separately. No production change was made for this finding.
+- **Override rationale**:
+  - Findings were inferential.
+  - Causal disposition remained unknown.
+  - Claims were manually investigated and not reproducible.
+  - Actual control flow contradicts the blocking scenarios.
+  - Repeated reruns produced different CRITICAL inferential claims rather than a reproducible defect.
+  - Further candidate mutation solely to obtain a clean automated result was not justified.
+  - Both lineages are preserved unmodified as historical review evidence.
+
+**Real defects found and fixed during implementation and review**:
+
+1. **Unhandled WebSocket error**: an authenticated client sending a malformed frame could emit an unhandled `ws` error capable of crashing the Electron main process. Fix: the accepted-client error handler terminates the client safely. (commit 780ab04)
+2. **Stop during in-flight start**: `stop()` during `start()` could let the gateway finish RUNNING afterwards. Fix: `pendingStart` coordination makes `stop()` wait for startup completion and then stop the resulting gateway. (commit 780ab04)
+3. **WebSocketServer constructor / pendingStart order**: `pendingStart` was published before `WebSocketServer` construction, so a synchronous constructor failure could poison `pendingStart`, preventing retry and making `stop()` wait forever. Fix: construct `WebSocketServer` before publishing `pendingStart`. Regression test `tls-gateway-startup.test.ts` (isolated Vitest module mock, no production test seam). (commit eef2751)
+
+**Scope confirmation**:
+
+- **Delivered**: real TLS 1.3 WSS with mTLS and private CA; Policy A and `SSL_OP_NO_TICKET` preserved; temporal and Upgrade validators executed before `handleUpgrade`; second lifecycle check; active WebSocket ownership; termination on stop; failed-start rollback with retry; stop-during-start handled; restart isolation; malformed client frame cannot crash the process.
+- **Absent**: B1a2b resource hardening; B1b identity mapping; B1c secure-link/FSM composition; FSM ACTIVE; product actions; Usuario PC changes.
+
+### Next Roadmap Item
+
+PR-08B1a2b transport/resource hardening is the NEXT roadmap item. Expected concerns remain connection limits, payload limits, idle timeout, heartbeat, rate limiting, and backpressure. It is NOT implemented here and, per the existing roadmap authority, requires a fresh preflight within the 400-line budget before any implementation gate. B1b remains separate and blocked on business identity architecture; B1c remains separate.
 
 ### Final Transport Ordering
 
@@ -1685,7 +1731,7 @@ The split does not absorb:
 
 ### Implementation Gate
 
-PR-08B1a2a2a is CLOSED / INTEGRATED. No a2b implementation is part of this status update. PR-08B1a2a2b begins only after this updated OpenSpec authority is committed and pushed.
+PR-08B1a2a2a and PR-08B1a2a2b are CLOSED / INTEGRATED, and parent PR-08B1a2a2 is CLOSED / INTEGRATED. No further PR-08B1a2a2 implementation remains. PR-08B1a2b, B1b, and B1c are separate roadmap items.
 
 ---
 
