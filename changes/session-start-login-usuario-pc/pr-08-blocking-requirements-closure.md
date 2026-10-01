@@ -11,7 +11,7 @@
 2. Revisar el contrato normativo cruzado en
    [`specs/dinamizador-usuario-pc-secure-link/spec.md`](./specs/dinamizador-usuario-pc-secure-link/spec.md).
 3. Confirmar el límite de cero acciones de producto y la subdivisión obligatoria.
-4. Ejecutar un preflight nuevo antes de la siguiente slice técnica: PR-08B1a2b.
+4. Confirmar el preflight completo y el alcance aprobado de la siguiente slice técnica: PR-08B1a2b.
 
 ## 1. Jerarquía y naturaleza de las decisiones
 
@@ -82,12 +82,36 @@ final: transporte WSS seguro + lifecycle seguro del gateway.
   **ESCALATED — MAINTAINER OVERRIDE** (no aprobada, no superada y no limpia;
   el detalle está en [`design.md` de PR-08B1a2a2](../PR-08B1a2a2/design.md)).
 
-**PR-08B1a2b — NEXT / PREFLIGHT REQUIRED / NOT STARTED.** Es control de
-recursos/hardening de transporte (límites de conexión, límites de payload, idle
-timeout, heartbeat, rate limiting y backpressure). Requiere un preflight fresco
-de arquitectura, alcance y tamaño ≤400 antes de cualquier implementación; no
-está lista para implementar. B1b está PLANNED / BLOCKED por la codificación de
-identidad de negocio X.509; B1c está PLANNED / NOT STARTED.
+**PR-08B1a2b — PREFLIGHT COMPLETE / READY FOR IMPLEMENTATION / NOT STARTED.**
+Su arquitectura autoritativa es
+[`changes/PR-08B1a2b/design.md`](../PR-08B1a2b/design.md), aprobada sobre
+OpenSpec `3a86051a4b4cb31d381dfe2859b6069b01cb6c64`. El maintainer aceptó una
+única slice ejecutable: forecast de **265 netas**, cota ajustada por riesgo de
+**371 netas** y presupuesto canónico de 400 netas.
+
+El alcance aceptado es cap de `server.maxConnections`, `maxPayload` inbound de
+`ws`, `perMessageDeflate: false` explícito y heartbeat ping/pong para peers
+muertos, con ciclo de vida de timer y aislamiento de restart. Tras GREEN de
+static-limits se debe medir el neto acumulado y revisar la proyección: si el
+final proyectado supera 380 netas, se debe **STOP** y reportar, sin split ni
+excepción automática; si el real supera 400 netas, se debe **STOP**, sin
+excepción automática de cohesión. B1a2b1 (static limits) y B1a2b2 (liveness)
+son solo una **PROPOSAL** de fallback, no un fallback automático.
+
+Los refinamientos aprobados no son omisiones: no hay idle independiente sin
+frames; heartbeat cubre peers muertos y el timeout de upgraded-never-negotiates
+pertenece a B1c. Rate limiting queda íntegramente diferido a una slice futura
+independiente; IP remoto sería como máximo clave de abuso no confiable, nunca
+identidad, y umbral/ventana son decisiones de owner. El backpressure inbound se
+cubre con `maxPayload`; `bufferedAmount` y las colas outbound se difieren a
+B1c, y B1a2b no introduce ninguna cola outbound. `maxConnections`,
+`maxPayload` y `pingIntervalMs` son
+configuración REQUIRED sin defaults ocultos: los valores numéricos operativos
+siguen OPEN, no bloquean implementación/merge de B1a2b y sí bloquean la
+composición/wiring final de producción de B1c; los valores de prueba no son
+recomendaciones. B1a2b no amplía el vocabulario de `SecurityAudit`. B1b está
+PLANNED / BLOCKED por la codificación de identidad de negocio X.509; B1c está
+PLANNED / NOT STARTED.
 
 El `master` actual contiene `ws`, WSS con TLS 1.3 + mTLS, integración de HTTP
 Upgrade y la resolución de reanudación TLS (Policy A). El `master` actual NO
@@ -312,7 +336,7 @@ integrado ni la descomposición actual:
 | PR-08B1a2a1 | **299 actual: 102 producción + 197 pruebas** | CLOSED/INTEGRATED/PUSHED. |
 | PR-08B1a2a1r | Sub-slices r1, r2a, r2a1 y r2b | CLOSED/INTEGRATED: Policy A (rechazo y auditoría de reanudación TLS). |
 | PR-08B1a2a2 | a2a 179 neto + a2b 367 neto | CLOSED/INTEGRATED: a2a (primitivas y dependencias WSS) + a2b (integración WSS y lifecycle seguro); cada hijo ≤400 neto. |
-| PR-08B1a2b | Preflight fresco ≤400 | NEXT / PREFLIGHT REQUIRED / NOT STARTED: resource controls/hardening separado. |
+| PR-08B1a2b | 265 netas; 371 netas ajustadas por riesgo | PREFLIGHT COMPLETE / READY FOR IMPLEMENTATION / NOT STARTED: una slice de resource controls/hardening; checkpoint obligatorio tras static-limits GREEN, STOP/reportar si la proyección supera 380 netas o el real supera 400; B1a2b1/B1a2b2 son solo PROPOSAL. |
 | PR-08B1b | Planificación futura | PLANNED / BLOCKED por identidad X.509. |
 | PR-08B1c | Planificación futura | PLANNED / NOT STARTED. |
 | PR-08B2 | 170–220 forecast histórico | Depende de B1 completo. |
@@ -327,7 +351,7 @@ ocultar los tamaños reales de sus hijos.
 
 ```text
 Dinamizador:
-PR-02 integrado → A1 CLOSED → A2 CLOSED → B1a1 CLOSED → B1a2a1f CLOSED → B1a2a1 CLOSED → B1a2a1r CLOSED → B1a2a2 CLOSED → B1a2b NEXT/PREFLIGHT REQUIRED → B1b BLOCKED → B1c → B2 → PR-09 → PR-10 → PR-11
+PR-02 integrado → A1 CLOSED → A2 CLOSED → B1a1 CLOSED → B1a2a1f CLOSED → B1a2a1 CLOSED → B1a2a1r CLOSED → B1a2a2 CLOSED → B1a2b PREFLIGHT COMPLETE/READY FOR IMPLEMENTATION/NOT STARTED → B1b BLOCKED → B1c → B2 → PR-09 → PR-10 → PR-11
 
 Usuario PC:
 PR-07B COMPLETE/integrado → freeze contractual PR-08A1/A2
@@ -345,11 +369,12 @@ PR-11 se exige conformidad cross-repo.
 
 **Readiness:** los nueve bloqueadores arquitectónicos originales permanecen
 cerrados, A1/A2 están cerrados y B1 está en progreso. No se crean worktrees
-umbrella PR-08A, PR-08B, PR-08B1 o PR-08U. La próxima slice técnica es
-B1a2b (control de recursos/hardening de transporte), solo tras un preflight
-fresco de arquitectura, alcance y tamaño ≤400; no está lista para implementar.
-Las slices de transporte, integradas o posteriores, no autorizan identidad,
-ACTIVE ni acciones de producto.
+umbrella PR-08A, PR-08B, PR-08B1 o PR-08U. La próxima slice técnica B1a2b
+(control de recursos/hardening de transporte) está en **PREFLIGHT COMPLETE /
+READY FOR IMPLEMENTATION / NOT STARTED**, con una sola slice aceptada y el
+checkpoint obligatorio de tamaño ya definido; no requiere otro preflight. Las
+slices de transporte, integradas o posteriores, no autorizan identidad, ACTIVE
+ni acciones de producto.
 
 ## 14. Riesgos y limitaciones aceptadas
 

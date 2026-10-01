@@ -10,7 +10,7 @@ Soft_Dinamizador y Soft_Usuario_PC.
 ## Estado de implementación (informativo; no modifica los requisitos)
 
 El estado autoritativo de Dinamizador es `master == origin/master` en
-`2b713ce450a295a996c8dad2b4b1d0957c6db99a`. PR-08A1 está CLOSED como A1a
+`eef27518862506a52f1f40dab5c870701d1be5d4`. PR-08A1 está CLOSED como A1a
 `83fd2fc4a57f469c99fc36464a9a0af7084f70c0` + A1b
 `9216370ef4876d553e0acef18d16821ddcd11cee`; PR-08A2 está CLOSED como A2a
 `1dbd4eafaacf9b10f91b944b32a9451e699f43bf`, A2b
@@ -33,24 +33,24 @@ lifecycle y manejo de error runtime. Validación: TLS 6/6, secure-link 90/90,
 security/main 101/101 y typecheck PASS. Las acciones de producto son **CERO**
 (`Product actions: ZERO`).
 
-`SSL_OP_NO_TICKET` está configurado, pero no prueba no-reanudación. B1a2a1r es
-NEXT / OPEN TECHNICAL SLICE para registrar evidencia Node 22/OpenSSL 3 sobre
-material de evento/ticket TLS 1.3 observado, sin diseñar solución. B1a2a2 está
-PLANNED / NOT STARTED para `https.createServer` +
-`WebSocketServer({ noServer: true })` + HTTPS Upgrade, con validación temporal
-B1a1 antes de `handleUpgrade` y WSS solo después de TLS/mTLS; `ws` runtime y
-`@types/ws` dev son candidatos sin pinning de versión. B1a2b, separado para
-resource controls/hardening, está PLANNED / NOT STARTED.
+**Policy A — B1a2a1r — está CLOSED / INTEGRATED** y B1a2a2 está CLOSED /
+INTEGRATED. El `master` actual contiene `ws`,
+`WebSocketServer({ noServer: true })`, HTTPS Upgrade, WSS con TLS 1.3 + mTLS,
+el rechazo server-side de sockets reanudados de Policy A y lifecycle seguro del
+gateway. B1a2b está **PREFLIGHT COMPLETE / READY FOR IMPLEMENTATION / NOT
+STARTED**; B1a2b resource hardening sigue ausente.
 
+También siguen ausentes B1b (identidad de negocio X.509 y autorización de
+instalación/centro) y B1c (composición, FSM, `ACTIVE` y acciones de producto).
 B1b está PLANNED / BLOCKED por la codificación OPEN de identidad de negocio
 X.509; no se inventa mapping CN/O/OU/SAN/custom extension. B1c está PLANNED /
-NOT STARTED: las primitivas existentes no componen transporte + identidad +
-negociación + `ACTIVE`. También permanecen OPEN la plausibilidad de reloj, la
-política de reanudación TLS y la provisión física del certificado/clave de
-servidor. El `master` actual no contiene `ws`, WSS, HTTP Upgrade, resolución de
-reanudación, identidad de negocio, autorización de instalación/centro/deny,
-composición transporte-FSM completa, `ACTIVE` de producción ni acciones de
-producto.
+NOT STARTED. Permanecen OPEN la codificación de identidad X.509, la provisión
+física del certificado/clave de servidor y la plausibilidad de reloj.
+
+`SecurityAuditSink` local durable sigue siendo un requisito arquitectónico
+**NORMATIVE**, pero aún no se ha demostrado un sink durable de producción en
+este repositorio Dinamizador. B1a2b no implementa almacenamiento durable de
+auditoría; su sección normativa no cambia.
 
 ## Requirements
 
@@ -226,13 +226,14 @@ abarcar TLS 1.3 mTLS y WebSocket upgrade. Cada nueva conexión/reconexión MUST
 empezar sin autenticación, época, secuencia, capacidades ni privilegios
 heredados. Dinamizador MUST exponer a lo sumo un enlace ACTIVE por station_id validado. El reemplazo del peer MUST invalidar el binding anterior atómicamente.
 
-La reanudación TLS MAY usarse solo si cada conexión nueva revalida vigencia del
-certificado, identidad autenticada, registro de autorización, binding de centro y
-deny local. Si el stack no puede garantizarlo, MUST deshabilitarse. La política
-concreta permanece como **OPEN REQUIREMENT**: `SSL_OP_NO_TICKET` configurado no
-prueba no-reanudación ante el material de evento/ticket TLS 1.3 observado en Node
-22/OpenSSL 3. B1a2a1r MUST registrar evidencia antes de cualquier claim de
-conformidad y esta especificación no anticipa la solución.
+La propiedad de **Policy A está CLOSED**: ADA **MUST NOT ACCEPT** una conexión
+de transporte TLS reanudada; toda conexión aceptada MUST requerir un handshake
+TLS fresco/completo. Si `tlsSocket.isSessionReused() === true`, el servidor MUST
+destruir síncronamente el socket **BEFORE** procesamiento HTTP, WSS Upgrade,
+negociación secure-link, autorización, FSM `ACTIVE` y acciones de producto.
+`SSL_OP_NO_TICKET` permanece como defensa en profundidad, **NOT** como prueba de
+que la reanudación sea imposible. `TLS_SESSION_RESUMED` permanece solo como
+vocabulario de auditoría local de transporte; no es un `RejectionCode` wire.
 
 #### Scenario: Reconexión limpia
 
@@ -241,12 +242,14 @@ conformidad y esta especificación no anticipa la solución.
 - THEN MUST empezar sin auth, época, secuencias ni capacidades heredadas
 - AND MUST repetir mTLS, autorización local y negociación
 
-#### Scenario: Reanudación sin revalidación completa
+#### Scenario: Socket TLS reanudado
 
-- GIVEN un stack de TLS resumption que no revalida todos los controles actuales
-- WHEN se configura el gateway o cliente
-- THEN la reanudación MUST quedar deshabilitada
-- AND la conexión MUST realizar autenticación completa
+- GIVEN un socket TLS cuyo `isSessionReused()` devuelve `true`
+- WHEN el servidor detecta la reanudación
+- THEN MUST destruir el socket antes de HTTP Upgrade y WSS
+- AND MUST NOT heredar estado de auth, identidad, época, secuencia, capacidades
+  ni privilegios
+- AND la siguiente conexión aceptada MUST usar un handshake TLS fresco/completo
 
 ### Requirement: `link.hello` exacto
 
