@@ -1,9 +1,9 @@
 # PR-08B1a2b — Transport Resource Hardening & Liveness
 ## Production Architecture Design
 
-**Change ID**: PR-08B1a2b  
-**Scope**: Connection limits, payload limits, heartbeat liveness  
-**Target**: ADA NOVA PLUS / Dinamizador Desktop  
+**Change ID**: PR-08B1a2b
+**Scope**: Connection limits, payload limits, heartbeat liveness
+**Target**: ADA NOVA PLUS / Dinamizador Desktop
 **Baselines**:
 - Dinamizador master: eef27518862506a52f1f40dab5c870701d1be5d4
 - PR-08B1a2a2 (WSS integration): CLOSED/INTEGRATED
@@ -15,15 +15,37 @@
 - OpenSpec changes/session-start-login-usuario-pc/specs/dinamizador-usuario-pc-secure-link/spec.md (secure-link contract)
 - Probed baseline facts: Node v24.18.0, ws 8.22.0, package.json allows ^8.18.0, lockfile pins 8.22.0
 
-**Status**: ARCHITECTURE APPROVED — IMPLEMENTATION NOT STARTED. PR-08B1a2b is ready for its implementation gate (Section 16). No branch or worktree exists for it.
+**Status**: COMPLETE / INTEGRATED
+
+**Integrated Dinamizador commit**: `878a375a83ac8733ca77d38c45c1086e77acf7b3`
+**Integrated tree**: `f83505c53240dcb1fcae083b10b8273974a404b2`
+**Base commit**: `eef27518862506a52f1f40dab5c870701d1be5d4`
+**Native review**: `review-55f3290fae878981`
+**Review result**: APPROVED + ACKNOWLEDGED (authority BURNED)
+**Size**: 344 NET / 364 CHURN
+**Validation**: TypeScript PASS, main/security 170 PASS
+**Product actions**: ZERO
 
 **Review record**:
 
 - **Architect**: `sdd-design`; `anthropic/claude-sonnet-4-5`; HIGH; verdict APPROVE (final pass, after revision passes requested by the parent gate).
 - **Independent architecture review**: `gentle-ai-verify`; `antigravity/gemini-3.1-pro`; HIGH; verdict APPROVE (18-point checklist PASS, with evidence from the code baseline and the ws 8.22.0 source).
 - **Parent gate**: the draft was returned CHANGES REQUIRED three times before approval. Defects resolved: an incoherent two-threshold liveness design, a false "detects idle" claim, a rate-limiting rationale that conflated peer replacement with rate limiting, module-level liveness state, a self-contradictory size forecast, a flaky pong-in-flight test design, unverified provenance claims and an unverified audit-sink claim.
-- **Native Gentle review**: not applicable (architecture document; no implementation candidate exists).
+- **Native Gentle review**: lineage `review-55f3290fae878981`; APPROVED + ACKNOWLEDGED; 4-lens capture group (risk/resilience/readability/reliability); provider refuter executed; 1 CRITICAL finding (R3-001) REFUTED by deterministic negative evidence; 6 informational findings (R3-002, R3-003, R3-004, R3-005, R3-006, R4-heartbeat-delay-overflow) classified WARNING/SUGGESTION, non-blocking.
 - **Maintainer acceptance**: approving this design = acceptance of the decisions in Section 14.1 and of the residual risks in Section 15.1. The owner numeric values in Section 14.2 remain open and block production wiring only, not implementation or merge.
+
+**Post-Integration Advisory Findings** (INFORMATIONAL / NON-BLOCKING):
+
+The native review identified six informational findings that are NOT blockers and do NOT reopen PR-08B1a2b. These are recorded as FOLLOW-UP / ADVISORY work for future independent consideration:
+
+- **R3-002** (WARNING): Informational transport hardening opportunity
+- **R3-003** (WARNING): Informational transport hardening opportunity
+- **R3-004** (WARNING): Informational transport hardening opportunity
+- **R3-005** (WARNING): Informational transport hardening opportunity
+- **R3-006** (WARNING): Informational transport hardening opportunity
+- **R4-heartbeat-delay-overflow** (WARNING): Deterministically reproduced numeric overflow risk in heartbeat delay calculation (non-blocking; classified informational by native review)
+
+These findings remain informational. They do not invalidate the approved candidate, do not block B1b or B1c, and are not prerequisites for production deployment. Future independent hardening work may address them as separate bounded slices.
 
 ---
 
@@ -197,10 +219,10 @@ new WebSocketServer({
 
 ### 5.2 Fail-Closed Behavior
 
-**Detection**: ws library (native)  
-**Enforcement**: Close 1009 sent, then terminate  
-**Cleanup**: Client removed from `activeClients` Set on `'close'` event  
-**Wire Code**: 1009 (standard WebSocket close code, NOT a secure-link RejectionCode)  
+**Detection**: ws library (native)
+**Enforcement**: Close 1009 sent, then terminate
+**Cleanup**: Client removed from `activeClients` Set on `'close'` event
+**Wire Code**: 1009 (standard WebSocket close code, NOT a secure-link RejectionCode)
 **Audit**: NO (transport-level enforcement; no identity; SecurityAudit contract unchanged)
 
 ### 5.3 Configuration & Test Strategy
@@ -610,9 +632,9 @@ Total new tests: +9 vitest tests, all in the new 'Transport Resource Controls (b
 
 ### 12.4 Total Size Forecast
 
-**Production**: 62–78 lines (point: 70)  
-**Tests**: 180–210 lines (point: 195)  
-**Test call-site updates**: ~11 lines (counted in test forecast above; broken out for clarity: ~8 in tls-gateway.test.ts, ~3 in tls-gateway-startup.test.ts)  
+**Production**: 62–78 lines (point: 70)
+**Tests**: 180–210 lines (point: 195)
+**Test call-site updates**: ~11 lines (counted in test forecast above; broken out for clarity: ~8 in tls-gateway.test.ts, ~3 in tls-gateway-startup.test.ts)
 **Total Point Estimate**: 70 + 195 = **265 net lines** (production + tests including call-site updates)
 
 **Risk-Adjusted Upper Bound**:

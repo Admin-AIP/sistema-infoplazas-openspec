@@ -82,21 +82,23 @@ final: transporte WSS seguro + lifecycle seguro del gateway.
   **ESCALATED — MAINTAINER OVERRIDE** (no aprobada, no superada y no limpia;
   el detalle está en [`design.md` de PR-08B1a2a2](../PR-08B1a2a2/design.md)).
 
-**PR-08B1a2b — PREFLIGHT COMPLETE / READY FOR IMPLEMENTATION / NOT STARTED.**
+**PR-08B1a2b — COMPLETE / INTEGRATED.**
+
+**Integrated commit**: `878a375a83ac8733ca77d38c45c1086e77acf7b3`
+**Integrated tree**: `f83505c53240dcb1fcae083b10b8273974a404b2`
+**Base**: `eef27518862506a52f1f40dab5c870701d1be5d4`
+**Native review**: `review-55f3290fae878981` (APPROVED + ACKNOWLEDGED)
+**Size**: 344 NET / 364 CHURN
+**Validation**: TypeScript PASS, main/security 170 PASS
+**Product actions**: ZERO
+
 Su arquitectura autoritativa es
 [`changes/PR-08B1a2b/design.md`](../PR-08B1a2b/design.md), aprobada sobre
-OpenSpec `3a86051a4b4cb31d381dfe2859b6069b01cb6c64`. El maintainer aceptó una
-única slice ejecutable: forecast de **265 netas**, cota ajustada por riesgo de
-**371 netas** y presupuesto canónico de 400 netas.
+OpenSpec `3a86051a4b4cb31d381dfe2859b6069b01cb6c64`.
 
-El alcance aceptado es cap de `server.maxConnections`, `maxPayload` inbound de
+El alcance integrado es cap de `server.maxConnections`, `maxPayload` inbound de
 `ws`, `perMessageDeflate: false` explícito y heartbeat ping/pong para peers
-muertos, con ciclo de vida de timer y aislamiento de restart. Tras GREEN de
-static-limits se debe medir el neto acumulado y revisar la proyección: si el
-final proyectado supera 380 netas, se debe **STOP** y reportar, sin split ni
-excepción automática; si el real supera 400 netas, se debe **STOP**, sin
-excepción automática de cohesión. B1a2b1 (static limits) y B1a2b2 (liveness)
-son solo una **PROPOSAL** de fallback, no un fallback automático.
+muertos, con ciclo de vida de timer y aislamiento de restart.
 
 Los refinamientos aprobados no son omisiones: no hay idle independiente sin
 frames; heartbeat cubre peers muertos y el timeout de upgraded-never-negotiates
@@ -109,9 +111,19 @@ B1c, y B1a2b no introduce ninguna cola outbound. `maxConnections`,
 configuración REQUIRED sin defaults ocultos: los valores numéricos operativos
 siguen OPEN, no bloquean implementación/merge de B1a2b y sí bloquean la
 composición/wiring final de producción de B1c; los valores de prueba no son
-recomendaciones. B1a2b no amplía el vocabulario de `SecurityAudit`. B1b está
-PLANNED / BLOCKED por la codificación de identidad de negocio X.509; B1c está
-PLANNED / NOT STARTED.
+recomendaciones. B1a2b no amplía el vocabulario de `SecurityAudit`.
+
+**Hallazgos informativos post-integración** (NO BLOQUEANTES):
+
+La revisión nativa identificó seis hallazgos informativos (R3-002, R3-003,
+R3-004, R3-005, R3-006, R4-heartbeat-delay-overflow) clasificados como
+WARNING/SUGGESTION. Estos NO son bloqueadores, NO reabren PR-08B1a2b, y se
+registran como trabajo de SEGUIMIENTO / ASESORAMIENTO para consideración futura
+independiente. R4-heartbeat-delay-overflow fue reproducido determinísticamente
+pero clasificado como no bloqueante por la revisión nativa.
+
+B1b está PLANNED / BLOCKED por la codificación de identidad de negocio X.509;
+B1c está PLANNED / NOT STARTED.
 
 El `master` actual contiene `ws`, WSS con TLS 1.3 + mTLS, integración de HTTP
 Upgrade y la resolución de reanudación TLS (Policy A). El `master` actual NO
