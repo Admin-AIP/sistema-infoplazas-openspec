@@ -122,8 +122,9 @@ registran como trabajo de SEGUIMIENTO / ASESORAMIENTO para consideración futura
 independiente. R4-heartbeat-delay-overflow fue reproducido determinísticamente
 pero clasificado como no bloqueante por la revisión nativa.
 
-B1b está PLANNED / BLOCKED por la codificación de identidad de negocio X.509;
-B1c está PLANNED / NOT STARTED.
+B1b está PLANNED / READY FOR PREFLIGHT (X.509 encoding blocker RESOLVED / APPROVED).
+Subdivisión aprobada: B1b1 (Certificate Identity Extraction) y B1b2 (Registry / Center / Deny Authorization).
+B1c está PLANNED / NOT STARTED (depends on B1b completion).
 
 El `master` actual contiene `ws`, WSS con TLS 1.3 + mTLS, integración de HTTP
 Upgrade y la resolución de reanudación TLS (Policy A). El `master` actual NO

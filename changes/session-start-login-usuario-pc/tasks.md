@@ -80,40 +80,68 @@ PR-04C may be planned only after these requirements are approved. It must be res
 
 **Responsible:** Product / architecture decision pending
 
-### OPEN REQUIREMENT
+### RESOLVED ARCHITECTURAL / IMPLEMENTATION RECORD
 2
  X.509 CERTIFICATE IDENTITY ENCODING
 
-**Status:** OPEN / unresolved
+**Status:** RESOLVED / APPROVED
 
-**Context:** PR-08B1a1 validates certificate temporal boundaries but does NOT extract identity fields. The secure-link architecture requires authenticating installations and stations using certificate-embedded identity, but the field encoding is undefined.
+**Context:** PR-08B1a1 validates certificate temporal boundaries but did NOT extract identity fields. The secure-link architecture requires authenticating installations using certificate-embedded identity. Architecture design completed and approved.
 
-**Undefined:**
-- Which X.509 field/extension carries `installationId` (CN? O? OU? SAN? Custom extension?)
-- Which X.509 field/extension carries `stationId`
-- Whether `centerId` is certificate-carried or derived from installation
-- Format (numeric? UUID? string?)
-- Canonicalization rules
-- Uniqueness guarantees
-- Parser/extraction implementation
-- Behavior for malformed / missing / ambiguous identity fields
-- Mismatch semantics (certificate identity vs expected identity)
+**APPROVED DECISIONS:**
 
-**Does NOT block:**
-- PR-08B1a1 (COMPLETE / CLOSED)
- temporal validation only
-- PR-08B1a2a1 (COMPLETE / CLOSED)
- transport-level TLS/mTLS foundation limited to cryptographic path validation
-- PR-08B1a2a1r and PR-08B1a2a2 (COMPLETE / CLOSED), and PR-08B1a2b (READY FOR IMPLEMENTATION / NOT STARTED)
- completed resumption enforcement and WSS transport, plus pre-identity transport hardening, without identity-dependent authorization
+**Certificate-bound immutable identity:**
+- `installationId`: Globally stable installation identity; cryptographically bound into client certificate
+- Format: Canonical lowercase RFC 4122 UUIDv4
+- Uniqueness: Global across all Usuario PC and Dinamizador installations
+- Mutability: Immutable for installation lifetime; retained across certificate renewal/reissuance
 
-**MUST be resolved before:**
-- PR-08B1b (PLANNED / BLOCKED)
- installation / station / center authorization
-- Any implementation performing identity-dependent access control
-- Production deployment of identity-based deny/allow registries
+**X.509 encoding:**
+- Field: RFC 5280 `subjectAltName` (OID 2.5.29.17)
+- Type: `GeneralName.uniformResourceIdentifier`
+- Exact v1 syntax: `urn:infoplazas:ada-nova-plus:secure-link:identity:v1:installation:<installationId>`
+- Where `<installationId>` matches: `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
+- Schema version: Explicit `v1`; future versions use `vN`; unsupported versions rejected
+- Exactly ONE reserved-namespace identity URI per certificate
+- Duplicate/malformed/missing/unsupported → fail closed
+- No fallback to CN/O/OU/DNS SAN/custom fields
+- No normalization/trimming/case-folding/percent-decoding
+- Exact case-sensitive ASCII validation
 
-**Responsible:** Certificate provisioning / PKI design decision pending
+**Registry-derived mutable bindings (NOT certificate-bound):**
+- `stationId`: Logical Usuario PC/workstation identity (registry-derived from installationId)
+- `centerId`: Infoplaza/center identity (registry-derived from installationId)
+- `sourceId`: Semantic relationship to stationId remains OPEN (see OPEN REQUIREMENT 5)
+- Authorization status: registry-derived
+- Deny/revocation: registry-derived; deny overrides allow
+- Active credential fingerprint/serial: registry allowlist required
+
+**Fail-closed parsing and authorization:**
+- Parser exceptions → deny
+- Unknown installation → deny
+- Unauthorized/disabled installation → deny
+- Deny registry hit → deny
+- Claim mismatch → `IDENTITY_MISMATCH` or `CENTER_MISMATCH`
+- Zero product actions
+
+**Offline operation:**
+- Extraction uses Node.js `crypto.X509Certificate.subjectAltName`
+- SAN tokenizer implements Node-documented JSON-quoted presentation rules
+- Center reassignment: offline nodes enforce latest locally synchronized state
+
+**Subdivision:**
+PR-08B1b exceeds 400-line review budget (450–610 NET forecast) and is subdivided into:
+- **PR-08B1b1**: Certificate Identity Extraction (SAN parsing, installationId extraction, typed result)
+- **PR-08B1b2**: Registry / Center / Deny Authorization (registry lookup, role/credential/station/center/deny validation, claim matching)
+
+Detailed architecture: `changes/PR-08B1b/design.md`
+
+**Unblocked:**
+- PR-08B1b1 (PLANNED / READY FOR PREFLIGHT after this approval)
+- PR-08B1b2 (PLANNED / depends on B1b1)
+
+**Approval date:** 2026-10-02
+**Approving authority:** Maintainer architecture review
 
 ### RESOLVED ARCHITECTURAL / IMPLEMENTATION RECORD
 3
@@ -137,6 +165,34 @@ PR-04C may be planned only after these requirements are approved. It must be res
 
 **MUST be resolved before:** production provisioning or deployment of the Dinamizador TLS server identity.
 
+### OPEN REQUIREMENT
+5
+ SOURCEID SEMANTIC RELATIONSHIP TO STATIONID
+
+**Status:** OPEN / unresolved
+
+**Context:** The approved X.509 identity architecture (RESOLVED REQUIREMENT 2) establishes that `sourceId` is registry-derived, not certificate-bound. However, the exact semantic relationship between `sourceId` and `stationId` remains undefined.
+
+**Undefined:**
+- Is `sourceId` an independent registry identifier with its own semantics?
+- Is `sourceId` deterministically equal to `stationId` for Usuario PC endpoints?
+- Does `sourceId` have a different meaning for Dinamizador vs Usuario PC?
+- What are the uniqueness/canonicalization rules if `sourceId` is independent?
+- What are the claim-matching rules in `promoteStationIdentity` if they can differ?
+
+**Does NOT block:**
+- PR-08B1b1 (Certificate Identity Extraction
+ certificate parsing is independent of sourceId)
+- PR-08B1b2 implementation (registry can store sourceId without defining its relationship to stationId)
+- Basic registry/claim matching (existing code treats them as potentially distinct)
+
+**MUST be resolved before:**
+- Production deployment with authoritative sourceId semantics
+- Final registry schema/migration that commits to independent vs derived sourceId
+- Documentation of the authoritative identity model for operations/support
+
+**Responsible:** Product / architecture decision pending
+
 ## Delivery contract
 
 The following are **implementation phases, not PR boundaries**: Phase 1 foundation and persistence (PRs 01–06), Phase 2 secure transport and the single Dinamizador aggregate (PRs 07–11), Phase 3 station login and modalities (PRs 12–14), and Phase 4 recovery and rollout proof (PRs 15–16). Disability profile/catalog work is preserved as a separate follow-up in the user registration / user profile / demographic catalogs domain, not as a session-chain PR.
@@ -157,7 +213,7 @@ PR-01 ─► PR-03 ─► PR-04A ─► PR-04B1 ─► PR-04B2 ─► PR-05A1 �
 PR-04C (BLOCKED / DEFERRED PENDING OPEN REQUIREMENTS) ─► policy-dependent admission/autonomous gates: PR-13 / PR-14, where applicable
 
 Dinamizador repository local integration branch `master`/`origin/master` at `eef27518862506a52f1f40dab5c870701d1be5d4`:
-PR-02 integrated ─► PR-08A1a CLOSED (`83fd2fc`) ─► PR-08A1b CLOSED (`9216370`) ─► PR-08A2a CLOSED (`1dbd4ea`) ─► PR-08A2b CLOSED (`efa8c84`) ─► PR-08A2c1 CLOSED (`9d81269`) ─► PR-08A2c2 CLOSED (`6a51a14`) ─► PR-08B1a1 CLOSED (`de6669a`) ─► PR-08B1a2a1f CLOSED (`22f509c`) ─► PR-08B1a2a1 CLOSED (`2b713ce`) ─► PR-08B1a2a1r CLOSED ─► PR-08B1a2a2 CLOSED (`eef2751`) ─► PR-08B1a2b COMPLETE / INTEGRATED (`878a375`) ─► PR-08B1b PLANNED / BLOCKED ─► PR-08B1c PLANNED / NOT STARTED ─► PR-08B2 ─► PR-09 ─► PR-10 ─► PR-11 ─► PR-16
+PR-02 integrated ─► PR-08A1a CLOSED (`83fd2fc`) ─► PR-08A1b CLOSED (`9216370`) ─► PR-08A2a CLOSED (`1dbd4ea`) ─► PR-08A2b CLOSED (`efa8c84`) ─► PR-08A2c1 CLOSED (`9d81269`) ─► PR-08A2c2 CLOSED (`6a51a14`) ─► PR-08B1a1 CLOSED (`de6669a`) ─► PR-08B1a2a1f CLOSED (`22f509c`) ─► PR-08B1a2a1 CLOSED (`2b713ce`) ─► PR-08B1a2a1r CLOSED ─► PR-08B1a2a2 CLOSED (`eef2751`) ─► PR-08B1a2b COMPLETE / INTEGRATED (`878a375`) ─► PR-08B1b1 PLANNED / READY FOR PREFLIGHT ─► PR-08B1b2 PLANNED / NOT STARTED ─► PR-08B1c PLANNED / NOT STARTED ─► PR-08B2 ─► PR-09 ─► PR-10 ─► PR-11 ─► PR-16
 
 Cross-repository contract dependencies, not Git ancestry:
 PR-08A1 is CLOSED as A1a (`83fd2fc4a57f469c99fc36464a9a0af7084f70c0`) + A1b (`9216370ef4876d553e0acef18d16821ddcd11cee`). PR-08A2 is CLOSED as A2a (`1dbd4eafaacf9b10f91b944b32a9451e699f43bf`) + A2b (`efa8c84eecdc116d6ff4a455fd8d82ecdd529d20`) + A2c1 (`9d81269e2f6ee49590c182298c157c50449b0f32`) + A2c2 (`6a51a1409ee52368d938b0eaead5bfcce479d63c`). Future bigint/link-identifier JSON/wire mapping belongs to later transport integration.
@@ -214,7 +270,9 @@ Each PR description must repeat the repository-local chain relevant to its repos
 | **PR-08B1a2a1r — Node 22/OpenSSL 3 TLS resumption policy — CLOSED / INTEGRATED** | Policy A resolved after B1a2a1. | CLOSED / integrated: r1 `b680e5c3d94ca57b566d1b8cbd7512aa54e706ae`, r2a `77143cccf61d92066b0742d5dcfef06404a55924`, r2a1 `0b51f8fdef45592ccd85750ace3bb36f386f98a4`, r2b `4cc81696b0b8f9de4868029f54b7abbb9197b9ae` | ADA synchronously destroys a socket when `tlsSocket.isSessionReused() === true`, before HTTP/WSS/secure-link/product processing; `SSL_OP_NO_TICKET` is defense in depth only. | Policy A is CLOSED / INTEGRATED. ZERO product actions. | No WSS feature, authorization, ACTIVE or product actions. |
 | **PR-08B1a2a2 — WSS core + HTTPS Upgrade — CLOSED / INTEGRATED** | WSS validators and dependencies integrated at `1e1a11ea5b6d2ff5209ca673a639dd1877605202`; real WSS and safe lifecycle integrated at `780ab0435c87aada50d537bbd4847dca560f2de1` and `eef27518862506a52f1f40dab5c870701d1be5d4`. | 179 net (a2a) + 367 net (a2b) | `https.createServer` + `WebSocketServer({ noServer: true })` + HTTPS upgrade, with temporal validation before upgrade and WSS only after TLS/mTLS; `ws` and `@types/ws` integrated. | TDD completed; a2a native review APPROVED, while a2b was ESCALATED / MAINTAINER OVERRIDE (not native approved). ZERO product actions. | No business identity, installation/center/deny authorization, ACTIVE or handlers. |
 | **PR-08B1a2b — Transport resource controls/hardening — COMPLETE / INTEGRATED** | **Integrated**: commit `878a375a83ac8733ca77d38c45c1086e77acf7b3`, tree `f83505c53240dcb1fcae083b10b8273974a404b2`. **Base**: `eef27518862506a52f1f40dab5c870701d1be5d4`. **Review**: `review-55f3290fae878981` APPROVED + ACKNOWLEDGED. **Size**: 344 NET / 364 CHURN. **Validation**: TypeScript PASS, main/security 170 PASS. Approved preflight: `changes/PR-08B1a2b/design.md` at OpenSpec `3a86051a4b4cb31d381dfe2859b6069b01cb6c64`. | One approved slice executed: 265 net point, 371 risk-adjusted. | Integrated config-only controls: finite positive safe integers `maxConnections`, `maxPayload`, `pingIntervalMs` with no hidden defaults; `server.maxConnections`; `WebSocketServer` `maxPayload`; explicit `perMessageDeflate: false`; one per-start-generation ping/pong awaiting-pong heartbeat that terminates non-responsive peers; cleanup on stop; none after failed start; restart isolation. Owner numeric values block final B1c production wiring, not B1a2b merge; test values are not production defaults. | Native review identified 6 informational findings (R3-002, R3-003, R3-004, R3-005, R3-006, R4-heartbeat-delay-overflow) classified WARNING/SUGGESTION, non-blocking, recorded as FOLLOW-UP / ADVISORY. ZERO product actions. | No independent no-frame idle timer (heartbeat owns dead-peer detection; B1c owns handshake timeout); rate limiting deferred entirely to a future independent slice (IP later only an untrusted abuse key, never identity); outbound `bufferedAmount`/queues deferred to B1c; no B1b identity, B1c negotiation/FSM, or SecurityAudit vocabulary expansion. |
-| **PR-08B1b — Installation / Center / Deny Authorization — PLANNED / BLOCKED** | Add identity-dependent authorization atop completed B1a2 transport. **Deps:** B1a2 integrated and X.509 business identity encoding OPEN REQUIREMENT resolved. | Future planning | Installation registry, center binding, deny registry and identity extraction only after approved field encoding. | Do not invent CN/O/OU/SAN/custom-extension mapping. | No ACTIVE transition, business actions or session schema. |
+| **PR-08B1b — Installation / Center / Deny Authorization — SPLIT / SUPERSEDED** | Preserve approved scope; not executable. **Deps:** X.509 encoding RESOLVED (see RESOLVED REQUIREMENT 2). | 450–610 NET (subdivision mandatory) | Exactly B1b1 + B1b2. Architecture: `changes/PR-08B1b/design.md`. | MUST NOT create umbrella worktree or apply. | Subdivided into B1b1 (certificate extraction) and B1b2 (registry/deny/center authorization). |
+| **PR-08B1b1 — Certificate Identity Extraction — PLANNED / READY FOR PREFLIGHT** | Parse peer X.509 identity using approved URI SAN v1 encoding. **Deps:** B1a2b integrated. | 160–210 NET (production 70–90, tests 90–120) | SAN tokenizer (Node JSON-quoted rules), URI namespace parser, installationId extraction, typed `ParsedCertificateIdentity { schemaVersion, installationId, certificateFingerprint256, serialNumber }`, duplicate/malformed/unsupported rejection. Test fixtures prove exact grammar, duplicates, malformed ASN.1, unsupported version v2/v0/missing, missing SAN, wrong GeneralName type. | After preflight GREEN, strict TDD. Fails closed on ANY parser exception, duplicate, malformed, or unsupported. ZERO registry lookup, ZERO authorization, ZERO ACTIVE, ZERO product actions. | No installation registry, no role/credential/station/center/deny validation, no claim matching, no gateway composition. |
+| **PR-08B1b2 — Registry / Center / Deny Authorization — PLANNED / NOT STARTED** | Authorize peer using registry/deny lookups keyed by certificate-derived installationId. **Deps:** B1b1 integrated. | 290–400 NET (production 120–160, tests 170–240) | Installation registry (unique installationId key, role/stationId/centerId/sourceId/status/credential-allowlist), deny registry (installationId + fingerprint/serial), endpoint role check, active credential verification, station/center/source binding, authorization status, deny precedence, exact claim matching (station/source → `IDENTITY_MISMATCH`, center → `CENTER_MISMATCH`), typed `AuthorizedPeerIdentity { installationId, stationId?, centerId, sourceId, endpointRole, credentialFingerprint256, registryVersion }`. Test registry: unknown installation, wrong role, unauthorized, denied, inactive credential, missing bindings, claim mismatches, deny-over-allow. | After B1b1 GREEN, strict TDD. Fails closed on unknown installation, unauthorized, denied, mismatch. Uses ONLY certificate-derived installationId to select registry. ZERO ACTIVE transition, ZERO product actions. | No B1c FSM composition, no link.accept emission, no ACTIVE, no business handlers. |
 | **PR-08B1c — FSM / Secure-Link Composition — PLANNED / NOT STARTED** | Integrate transport + authorization + negotiation into the secure-link FSM. **Deps:** B1b integrated. | Future planning | Compose the existing primitives only after transport and identity authorization exist. | Future gates TBD. | Current master has no full transport/FSM composition, production ACTIVE, business handlers or session activation. |
 | **PR-08B2 — durable security audit adapter + Electron composition** | Add durable evidence and main-process wiring. **Deps:** B1 integrated. | 170–220: 75–100 production + 95–120 tests | `SecurityAuditSink` allowlist/durability, rejection-channel mapping and Electron composition without secrets in IPC/renderer. | Tests prove TLS audit vs wire reject, sink failure, redaction, lifecycle and zero product handlers. | No session schema, operator UI or business capability. |
 | **PR-08U — Usuario PC counterpart umbrella — SPLIT / SUPERSEDED** | Preserve approved counterpart scope, not an executable PR. | 480–630: 220–290 production + 260–340 tests | Exactly U1+U2. | Mandatory split; MUST NOT create umbrella worktree. | Not completed; no own diff. |
