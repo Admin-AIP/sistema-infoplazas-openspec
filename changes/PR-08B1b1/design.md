@@ -1,5 +1,15 @@
 # PR-08B1b1 Certificate Identity Extraction Design
 
+> **SUPERSEDED FOR IMPLEMENTATION BY:**
+> - PR-08B1b1a — SAN Identity Parsing
+> - PR-08B1b1b — Peer Certificate Identity Extraction
+>
+> **Reason**: Mandatory size split after implementation evidence exceeded 400 NET gate (actual: 463 NET).
+>
+> **Implementation reference**: Oversized candidate `c23ca79338a68af17588f888d4974052b9e74261` preserved as read-only extraction reference. NOT integrated.
+>
+> **Architectural decisions below remain authoritative** and are preserved unchanged in B1b1a + B1b1b subdivision.
+
 ## Decision
 
 PR-08B1b1 adds a fail-closed, side-effect-free adapter that accepts an authenticated TLS peer, obtains its Node `crypto.X509Certificate`, parses exactly one reserved RFC 5280 URI SAN identity, and returns certificate identity evidence. It performs no registry lookup, claim comparison, link response, state transition, or product action.
