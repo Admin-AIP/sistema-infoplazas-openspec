@@ -10,10 +10,54 @@ This is the second subdivision of the original PR-08B1b2 work, mandated by the >
 
 **Original monolithic scope**: PR-08B1b2 (forecast: 360-450 NET, exceeded checkpoint)  
 **Split reason**: Mandatory size checkpoint enforcement at >350 NET projected  
-**Previous slice**: B1b2a — Registry resolution + credential matching (220-260 NET)  
-**This slice**: B1b2b — Deny + binding authorization (forecast: 170-210 NET)
+**Previous slice**: B1b2a — Registry resolution + credential matching (220-260 NET, COMPLETE + INTEGRATED)  
+**This slice**: B1b2b — Deny + binding authorization (revised forecast: 187-227 NET)
 
 **Dependency**: PR-08B1b2a MUST be integrated before B1b2b implementation begins.
+
+## B1b2a Contract Extension
+
+**Ownership**: This PR owns the contract bridge extension to RegistryResolvedInstallation.
+
+**Context**: Integrated B1b2a (commit 87bfeae) propagates `credentialFingerprint256` but not `serialNumber` in its intermediate result. This PR requires certificate-derived `serialNumber` evidence to implement approved deny-by-serial functionality.
+
+**Extended RegistryResolvedInstallation contract**:
+
+```typescript
+export type RegistryResolvedInstallation = Readonly<{
+  installationId: InstallationId
+  endpointRole: 'usuario-pc' | 'dinamizador'
+  stationId: StationId | undefined
+  centerId: CenterId
+  sourceId: SourceId
+  credentialFingerprint256: string
+  serialNumber: string  // ← Contract bridge: certificate-derived credential evidence
+  registryVersion: number
+}>
+```
+
+**Authority of serialNumber**:
+- **Certificate-derived** credential evidence (same authority as `credentialFingerprint256`, `installationId`)
+- Propagated from `ParsedCertificateIdentity.serialNumber`
+- Used by B1b2a for credential allowlist matching (OR semantics)
+- Used by B1b2b for deny-by-serial checks
+
+**Bridge scope** (modifications to B1b2a files, owned by B1b2b):
+- Type definition: +1 field (`serialNumber: string`)
+- Propagation: +1 line (`serialNumber: certificateIdentity.serialNumber`)
+- Test updates: serialNumber expectation and propagation verification
+- Size: ~17 NET bridge cost (included in revised B1b2b forecast below)
+
+**Preservation guarantees**:
+- Registry lookup remains installationId-only (unchanged)
+- Endpoint role authority unchanged
+- Credential allowlist semantics unchanged (OR logic preserved)
+- stationId/centerId/sourceId authority unchanged
+- No deny behavior introduced into B1b2a
+- No final authorization in B1b2a (remains intermediate result)
+- No ACTIVE transition
+- No link.accept emission
+- ZERO product actions in B1b2a
 
 ## Scope
 
@@ -48,11 +92,11 @@ This is the second subdivision of the original PR-08B1b2 work, mandated by the >
 ## Public Contract
 
 ```typescript
-// Deny registry interface
+// Deny registry interface (explicit namespaces)
 export interface DenyRegistry {
-  checkDeny(installationId: InstallationId): Promise<boolean>
-  checkCredentialDeny(fingerprint256: string): Promise<boolean>
-  checkCredentialDeny(serialNumber: string): Promise<boolean>
+  checkInstallationDeny(installationId: InstallationId): Promise<boolean>
+  checkFingerprintDeny(fingerprint256: string): Promise<boolean>
+  checkSerialDeny(serialNumber: string): Promise<boolean>
 }
 
 // Untrusted network claims (from link.hello)
@@ -98,7 +142,7 @@ The function never throws. All deny/claim exceptions are caught and mapped fail-
 ### Step 1: Deny by Installation
 
 ```typescript
-const installationDenied = await denyRegistry.checkDeny(
+const installationDenied = await denyRegistry.checkInstallationDeny(
   registryResolved.installationId
 )
 
@@ -112,19 +156,25 @@ if (installationDenied) {
 ### Step 2: Deny by Credential
 
 ```typescript
-const credentialDenied =
-  (await denyRegistry.checkCredentialDeny(registryResolved.credentialFingerprint256)) ||
-  (registryResolved.serialNumber && 
-   await denyRegistry.checkCredentialDeny(registryResolved.serialNumber))
+const fingerprintDenied = await denyRegistry.checkFingerprintDeny(
+  registryResolved.credentialFingerprint256
+)
 
-if (credentialDenied) {
+const serialDenied = await denyRegistry.checkSerialDeny(
+  registryResolved.serialNumber
+)
+
+if (fingerprintDenied || serialDenied) {
   return { ok: false, error: 'CREDENTIAL_DENIED' }
 }
 ```
 
 **Deny keys** (from approved architecture):
-- Deny may match by `installationId`, `fingerprint256`, or `serialNumber`
+- Installation deny: `checkInstallationDeny(installationId)`
+- Fingerprint deny: `checkFingerprintDeny(fingerprint256)`
+- Serial deny: `checkSerialDeny(serialNumber)`
 - **ANY deny hit rejects** (no fallback)
+- Explicit namespaces prevent ambiguity
 
 ### Step 3: Exact Claim Matching
 
@@ -263,22 +313,35 @@ Use in-memory deny registry snapshots inline with tests. No separate fixture fil
 
 ## Size Forecast
 
-- **Production**: 70-90 NET
+**Revised forecast** (includes B1b2a contract bridge owned by B1b2b):
+
+- **Production**: 87-107 NET
+  - B1b2a contract bridge: ~2 insertions (serialNumber field + propagation)
   - Deny interface/types: ~20 lines
-  - Deny check logic: ~15 lines
+  - Deny check logic: ~15 lines (explicit checkInstallationDeny/Fingerprint/Serial)
   - Authorization composition: ~30 lines
   - Claim matching: ~15 lines
   - Error mapping: ~10 lines
-- **Tests**: 90-110 NET
+- **Tests**: 115-135 NET
+  - B1b2a bridge tests: ~25 lines (serialNumber propagation verification)
   - Deny scenarios: ~30 lines
   - Deny precedence: ~20 lines
   - Claim mismatch scenarios: ~25 lines
   - Successful authorization: ~15 lines
   - Boundary/ZERO product actions: ~15 lines
 - **Modifications**: ~10 NET (identity.ts, contracts.ts for final type)
-- **Total**: **170-210 NET**
+- **Total**: **212-252 NET**
+- **Projected CHURN**: ~37 (B1b2a bridge: ~10 deletions from test expectation updates)
 
-Well within <=350 checkpoint and <=400 gate.
+**Previous forecast**: 170-210 NET (B1b2b only)  
+**Bridge cost**: ~17 NET (B1b2a contract extension)  
+**Revised total**: 187-227 NET (combined), realistically **212-252 NET** with full test coverage
+
+**Gate check**:  
+- <=300 checkpoint: ✓ **PASS** (252 < 300)
+- <=400 gate: ✓ **PASS** (252 < 400)
+
+No subdivision required.
 
 ## Product Actions
 

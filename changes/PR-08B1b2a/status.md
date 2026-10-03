@@ -106,8 +106,9 @@ All 11 security & boundary criteria verified:
 
 **Scope**: Deny registry + binding authorization
 - Will consume RegistryResolvedInstallation from B1b2a
-- Will implement deny checks and final authorization
-- Forecast: 170-210 NET
+- Will extend intermediate contract with certificate-derived `serialNumber` for approved deny-by-serial behavior
+- Will implement deny checks (installation, fingerprint, serial) and final authorization
+- Revised forecast: 187-227 NET (includes contract bridge)
 
 ## Open Requirements
 
