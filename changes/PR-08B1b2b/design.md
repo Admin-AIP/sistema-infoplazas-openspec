@@ -1,5 +1,19 @@
 # PR-08B1b2b Deny Registry + Authorization Composition Design
 
+## Implementation Status: SUPERSEDED
+
+**Reason**: Mandatory size split (actual implementation: 456 NET > 450 mandatory threshold)
+
+**Superseded by**:
+- PR-08B1b2b1: Contract Bridge + Deny Evaluation (~210 NET)
+- PR-08B1b2b2: Claim Binding + Final Authorization (~189 NET)
+
+**Security architecture preserved**: The approved deny-before-claims absolute precedence, exact claim matching, and fail-closed semantics are preserved across the split.
+
+**Original design retained below for architecture reference.**
+
+---
+
 ## Decision
 
 PR-08B1b2b implements deny/revocation checks and final binding authorization composition. It consumes the intermediate `RegistryResolvedInstallation` from B1b2a, applies absolute deny precedence, validates network claims against registry-authoritative identity, and produces the final `AuthorizedPeerIdentity`. It performs no registry lookup, no ACTIVE transition, and no product action.
