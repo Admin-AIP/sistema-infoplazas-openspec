@@ -1,304 +1,328 @@
 # PR-08B1b2b2 Claim Binding + Final Authorization Design
 
+## Status: NOT STARTED
+
+This document authorizes architecture and planning only. PR-08B1b2b2 implementation has not started.
+
 ## Decision
 
-PR-08B1b2b2 validates untrusted network claims against registry-derived authoritative identity and produces the final `AuthorizedPeerIdentity`. It consumes deny-cleared intermediate results from B1b2b1, performs exact claim matching with fail-closed semantics, and produces FINAL authorization. The public API enforces deny-before-claims order. It performs no registry lookup, no deny evaluation, no ACTIVE transition, and no product action.
+PR-08B1b2b2 validates untrusted peer claims against deny-cleared, registry-derived authority and produces the final `AuthorizedPeerIdentity`. Its public API owns the complete deny-before-claims boundary:
 
-This is the second subdivision of PR-08B1b2b, mandated by the >450 NET size threshold.
+```text
+RegistryResolvedInstallation
+→ evaluateDeny()
+→ DenyClearedAuthorization
+→ exact claim binding
+→ AuthorizedPeerIdentity
+```
 
-## Subdivision Context
+No normal public path may produce `AuthorizedPeerIdentity` without first passing `evaluateDeny()`. This slice adds no registry lookup, deny logic, transport behavior, FSM composition, `ACTIVE` transition, `link.accept`, durable audit, business handler, or product action.
 
-**Parent work**: PR-08B1b2b (Deny + Authorization Composition)  
-**Split reason**: Mandatory size split (456 NET > 450 threshold)  
-**Previous slice**: B1b2b1 — Contract Bridge + Deny Evaluation (forecast: ~210 NET)  
-**This slice**: B1b2b2 — Claim Binding + Final Authorization (forecast: ~189 NET)
+## Dependency and Baseline
 
-**Dependency**: PR-08B1b2b1 MUST be integrated before B1b2b2 implementation begins.
+**Dependency**: PR-08B1b2b1 — Contract Bridge + Deny Evaluation
+
+**Dependency status**: COMPLETE + INTEGRATED
+
+**Integrated Dinamizador commit**: `97164adf0b0d27ccbce04fbd019d3afa8b0fbe2e`
+
+PR-08B1b2b2 consumes the integrated B1b2b1 contracts without modifying them:
+
+- `RegistryResolvedInstallation`
+- `DenyRegistry`
+- `DenyClearedAuthorization`
+- `DenyEvaluationError`
+- `DenyEvaluationResult`
+- `evaluateDeny()`
+
+No B1b2b1 change is required.
 
 ## Scope
 
 ### Included
 
-1. **UntrustedPeerClaims type** (network claims from link.hello):
-   - `station_id`, `center_id`, `source_id`
-   - NON-AUTHORITATIVE semantics
-
-2. **Exact claim matching**:
-   - Station/source mismatch → IDENTITY_MISMATCH
-   - Center mismatch → CENTER_MISMATCH
-   - Exact string equality (no normalization, trim, case-fold)
-   - Fail-closed on mismatch
-
-3. **Final AuthorizedPeerIdentity production**:
-   - installationId, stationId, centerId, sourceId, endpointRole
-   - credentialFingerprint256, registryVersion
-   - Does NOT include serialNumber (credential evidence only)
-
-4. **Public end-to-end composition**: `authorizePeer()`
-   - Input: RegistryResolvedInstallation + UntrustedPeerClaims + DenyRegistry
-   - Calls B1b2b1 `evaluateDeny()` FIRST
-   - Only after deny success: claim matching
-   - Output: AuthorizedPeerIdentity
-   - Enforces deny-before-claims order at API boundary
-
-5. **Fail-closed behavior**:
-   - Station mismatch → IDENTITY_MISMATCH
-   - Source mismatch → IDENTITY_MISMATCH
-   - Center mismatch → CENTER_MISMATCH
-   - Any claim mismatch rejects
+1. Reuse the existing `UntrustedPeerClaims` contract from `identity.ts`.
+2. Delegate deny evaluation to B1b2b1 before reading or comparing claims.
+3. Bind station, source, and center claims using exact equality.
+4. Produce the seven-field final `AuthorizedPeerIdentity` explicitly from deny-cleared registry authority.
+5. Return the existing deny errors and claim-binding errors through `SecureLinkResult`.
+6. Preserve the legacy `promoteStationIdentity()` implementation without using it in the new PR-08 path.
 
 ### Excluded
 
-- Registry lookup (B1b2a scope)
-- Deny evaluation logic (B1b2b1 scope)
-- SAN parsing (B1b1a scope)
-- Certificate extraction (B1b1b scope)
-- ACTIVE transition (B1c scope)
-- link.accept emission (B1c scope)
-- FSM composition (B1c scope)
-- Durable audit (B2 scope)
+- New registry lookup behavior
+- SAN parsing
+- Certificate extraction
+- TLS or transport changes
+- Credential allowlist changes
+- New deny evaluation logic
+- Legacy identity-promotion refactoring
+- FSM composition
+- `ACTIVE` transition
+- `link.accept` emission
+- Clock-plausibility resolution
+- Durable `SecurityAudit`
+- Business handlers
 - Product actions: **ZERO**
 
-## Public Contract
+## Reconciled Contracts
+
+### Existing UntrustedPeerClaims
+
+B1b2b2 MUST import and reuse the existing TypeScript type from `identity.ts`:
 
 ```typescript
-// Untrusted network claims (NON-AUTHORITATIVE)
-export type UntrustedPeerClaims = Readonly<{
-  station_id: string
-  center_id: string
-  source_id: string
+Readonly<{
+  kind: "untrusted-peer-claims"
+  stationId: string
+  centerId: string
+  sourceId: string
 }>
+```
 
-// Final authorized peer identity (FINAL authorization)
-export type AuthorizedPeerIdentity = Readonly<{
+B1b2b2 MUST NOT declare a second claims type. Earlier `station_id`, `center_id`, and `source_id` wording described conceptual or wire fields; it did not authorize another TypeScript contract. Reusing the existing camelCase, discriminated type is contract reconciliation, not an architecture change.
+
+### AuthorizedPeerIdentity
+
+The final identity contains exactly:
+
+```typescript
+Readonly<{
   installationId: InstallationId
   stationId: StationId | undefined
   centerId: CenterId
   sourceId: SourceId
-  endpointRole: 'usuario-pc' | 'dinamizador'
+  endpointRole: "usuario-pc" | "dinamizador"
   credentialFingerprint256: string
   registryVersion: number
 }>
+```
 
-// Claim authorization errors
-export type ClaimAuthorizationError =
-  | 'IDENTITY_MISMATCH'
-  | 'CENTER_MISMATCH'
+All seven values come from the authoritative `DenyClearedAuthorization`. Construction MUST select these fields explicitly.
 
-// Combined authorization error (deny + claim)
-export type AuthorizationError =
-  | DenyEvaluationError  // from B1b2b1
+The implementation MUST NOT spread the complete intermediate object. `serialNumber` remains credential evidence and MUST NOT appear in `AuthorizedPeerIdentity`.
+
+Claims are comparison inputs only. They never populate, overwrite, repair, canonicalize, or replace final identity values.
+
+### Errors and Result
+
+```typescript
+ClaimAuthorizationError =
+  | "IDENTITY_MISMATCH"
+  | "CENTER_MISMATCH"
+
+AuthorizationError =
+  | DenyEvaluationError
   | ClaimAuthorizationError
 
-export type AuthorizationResult = SecureLinkResult<
+AuthorizationResult = SecureLinkResult<
   AuthorizedPeerIdentity,
   AuthorizationError
 >
+```
 
-// Public end-to-end authorization (deny-before-claims enforced)
-export async function authorizePeer(
+`DenyEvaluationError` contributes:
+
+- `INSTALLATION_DENIED`
+- `CREDENTIAL_DENIED`
+
+B1b2b2 reuses `SecureLinkResult`; it MUST NOT introduce a parallel result abstraction.
+
+### Public API
+
+```typescript
+authorizePeer(
   registryResolved: RegistryResolvedInstallation,
   claims: UntrustedPeerClaims,
   denyRegistry: DenyRegistry
 ): Promise<AuthorizationResult>
 ```
 
-The public `authorizePeer()` function enforces deny-before-claims order and prevents bypass through the public API.
+The claim-binding helper, if extracted, MUST be private and non-exported. Tests MUST exercise behavior through `authorizePeer()` rather than exposing a deny-bypassing helper for convenience.
 
-## Implementation Strategy
+## Mandatory Authorization Sequence
 
-### Step 1: Deny Evaluation (via B1b2b1)
+`authorizePeer()` MUST execute in this order:
 
-```typescript
-export async function authorizePeer(
-  registryResolved: RegistryResolvedInstallation,
-  claims: UntrustedPeerClaims,
-  denyRegistry: DenyRegistry
-): Promise<AuthorizationResult> {
-  // Call B1b2b1 evaluateDeny() FIRST
-  const denyResult = await evaluateDeny(registryResolved, denyRegistry)
-  
-  if (!denyResult.ok) {
-    // Deny evaluation failed → stop, return deny error
-    return denyResult
-  }
+1. Call B1b2b1 `evaluateDeny(registryResolved, denyRegistry)` first.
+2. Return an installation or credential deny error immediately.
+3. Perform claim binding only after deny success produces `DenyClearedAuthorization`.
+4. Produce `AuthorizedPeerIdentity` only after every required exact comparison succeeds.
 
-  // Deny evaluation succeeded → continue to claim matching
-  const denyClearedAuth = denyResult.value
-  
-  // Step 2: Claim matching (internal helper or inline)
-  return bindClaimsToIdentity(denyClearedAuth, claims)
-}
+Caller discipline is insufficient. The exported API itself enforces this sequence.
+
+## Exact Claim-Binding Rules
+
+### stationId: Presence-Based
+
+When authoritative `stationId !== undefined`:
+
+```text
+claims.stationId === authoritative stationId
 ```
 
-### Step 2: Station/Source Claim Matching
+A mismatch returns `IDENTITY_MISMATCH`.
 
-```typescript
-// Station/source claim matching (usuario-pc only)
-if (denyClearedAuth.stationId !== undefined) {
-  if (claims.station_id !== denyClearedAuth.stationId ||
-      claims.source_id !== denyClearedAuth.sourceId) {
-    return { ok: false, error: 'IDENTITY_MISMATCH' }
-  }
-}
+When authoritative `stationId === undefined`, the station claim is not compared. This rule depends on authoritative station presence, not solely on `endpointRole`.
+
+No station claim may be normalized, derived, repaired, or used to populate a missing registry station.
+
+### sourceId: Mandatory for Every Role
+
+For every peer role, independently of station presence:
+
+```text
+claims.sourceId === authoritative sourceId
 ```
 
-**Exact equality**: No trim, no case-fold, no normalization.
+A mismatch returns `IDENTITY_MISMATCH`.
 
-### Step 3: Center Claim Matching
+This comparison remains mandatory when authoritative `stationId` is undefined. There is no trim, case folding, Unicode normalization, fallback, repair, or derivation from `stationId`.
 
-```typescript
-// Center claim matching (all roles)
-if (claims.center_id !== denyClearedAuth.centerId) {
-  return { ok: false, error: 'CENTER_MISMATCH' }
-}
+These two statements are intentionally distinct:
+
+- **sourceId semantics**: OPEN
+- **sourceId authorization binding**: EXACT and mandatory for all roles
+
+Exact opaque-value binding does not resolve the semantic relationship between `sourceId` and `stationId`.
+
+### centerId: Mandatory for Every Role
+
+For every peer role:
+
+```text
+claims.centerId === authoritative centerId
 ```
 
-### Step 4: Produce Final AuthorizedPeerIdentity
+A mismatch returns `CENTER_MISMATCH`.
 
-```typescript
-return {
-  ok: true,
-  value: {
-    installationId: denyClearedAuth.installationId,
-    stationId: denyClearedAuth.stationId,
-    centerId: denyClearedAuth.centerId,
-    sourceId: denyClearedAuth.sourceId,
-    endpointRole: denyClearedAuth.endpointRole,
-    credentialFingerprint256: denyClearedAuth.credentialFingerprint256,
-    registryVersion: denyClearedAuth.registryVersion,
-  },
-}
-```
+There is no trim, case folding, Unicode normalization, fallback, repair, or claim-derived replacement.
 
-**Note**: `serialNumber` is NOT included in final AuthorizedPeerIdentity (credential evidence only).
+## Legacy promoteStationIdentity Boundary
 
-## Deny-Before-Claims Enforcement
+The existing exported `promoteStationIdentity()` remains unchanged:
 
-### Public API contract
+- It currently has no production callers.
+- Its current callers are tests.
+- It is a legacy identity-promotion primitive.
+- It does not perform B1b2a registry/credential authorization.
+- It does not perform B1b2b1 deny evaluation.
+- It produces `TrustedStationIdentity`, not `AuthorizedPeerIdentity`.
 
-The public `authorizePeer()` function MUST:
-1. Call `evaluateDeny()` from B1b2b1
-2. STOP on deny error
-3. Only after deny success: perform claim matching
-4. Return AuthorizedPeerIdentity
+Treatment: **KEEP as legacy-only existing code**.
 
-### Internal helper (optional)
+B1b2b2 MUST NOT reuse, adapt, delete, or refactor it. The implementation MUST NOT fabricate `AuthenticatedPeerContext` or `AuthorizedStationRecord` values to reuse the legacy function.
 
-If an internal `bindClaimsToIdentity()` helper is used for claim matching:
+For the new PR-08 secure-link path, `promoteStationIdentity()` and `TrustedStationIdentity` are not alternatives to `authorizePeer()` and `AuthorizedPeerIdentity`. Future B1c production composition MUST consume the successful B1b2b2 authorization result rather than bypassing it through legacy promotion.
 
-```typescript
-function bindClaimsToIdentity(
-  denyClearedAuth: DenyClearedAuthorization,
-  claims: UntrustedPeerClaims
-): SecureLinkResult<AuthorizedPeerIdentity, ClaimAuthorizationError>
-```
+## Authority Boundaries
 
-**Keep it NON-PUBLIC** unless there is a concrete architecture reason to expose it.
+| Value | Authority |
+| --- | --- |
+| `installationId` | Certificate-derived chain through registry resolution |
+| `credentialFingerprint256` | Certificate-derived evidence through registry resolution |
+| `serialNumber` | Certificate-derived deny evidence only; excluded from final identity |
+| `endpointRole` | Registry-derived |
+| `stationId` | Registry-derived; may be undefined |
+| `centerId` | Registry-derived |
+| `sourceId` | Registry-derived opaque value |
+| `registryVersion` | Registry-derived |
+| Network claims | Non-authoritative comparison inputs only |
 
-### No bypass path
+## Clock Plausibility
 
-There MUST be no normal public API that produces `AuthorizedPeerIdentity` without deny evaluation first. The public `authorizePeer()` enforces this at the API boundary.
+Clock plausibility remains **OPEN**.
 
-## Claim Authority Boundary
+It does not block B1b2b2 claim authorization or production of `AuthorizedPeerIdentity`.
 
-**Network claims are NON-AUTHORITATIVE**:
-- Claims are compared against registry-derived authoritative values
-- Claims NEVER override, select, or repair registry identity
-- Mismatch → fail-closed rejection
-- Claims prove knowledge but do not grant authority
+It continues to block `ACTIVE` and production acceptance later in B1c2. B1b2b2 MUST NOT solve, infer, or bypass clock plausibility.
 
-**Registry-derived values are authoritative**:
-- `stationId`, `centerId`, `sourceId` come from registry (via B1b2a)
-- Claims must match registry values exactly
-- Final AuthorizedPeerIdentity carries registry values, not claim values
+## Required Verification Coverage
 
-## Test Strategy
+Tests may be table-driven when that improves clarity and removes repeated setup. Equivalent explicit evidence may cover multiple bullets; meaningful security scenarios MUST NOT be removed to meet the line budget.
 
-### Minimum coverage (17 tests)
+### Claims
 
-**Claim matching**:
-1. station_id mismatch → IDENTITY_MISMATCH
-2. source_id mismatch → IDENTITY_MISMATCH
-3. center_id mismatch → CENTER_MISMATCH
-4. exact station equality (no normalization)
-5. exact source equality (no trim/case-fold)
-6. exact center equality (no normalization)
+- Station exact equality when authoritative station is present
+- Station mismatch → `IDENTITY_MISMATCH`
+- Station claim skipped when authoritative station is undefined
+- Source exact equality for a stationful peer
+- Source mismatch for a stationful peer → `IDENTITY_MISMATCH`
+- Source exact equality for a stationless peer
+- Source mismatch for a stationless peer → `IDENTITY_MISMATCH`
+- Center exact equality
+- Center mismatch → `CENTER_MISMATCH`
+- No trim
+- No case folding
+- No Unicode or other normalization
 
-**Successful authorization**:
-7. all checks pass → AuthorizedPeerIdentity
-8. final identity has exact fields
-9. serialNumber NOT in final AuthorizedPeerIdentity
-10. registry values preserved, claims never overwrite
+### Final Identity
 
-**Deny-before-claims order**:
-11. installation deny prevents claim evaluation
-12. fingerprint deny prevents claim evaluation
-13. serial deny prevents claim evaluation
-14. credential deny checked before claim matching
+- Successful `AuthorizedPeerIdentity`
+- Exact seven-field output
+- `serialNumber` absent
+- Registry values preserved
+- Claims cannot overwrite or repair registry values
+- Stationless final identity preserves `stationId: undefined`
 
-**Role-specific**:
-15. dinamizador role with undefined stationId succeeds
+### Deny Before Claims
 
-**Boundary**:
-16. no ACTIVE transition
-17. ZERO product actions
+- Installation deny prevents claim binding
+- Fingerprint deny prevents claim binding
+- Serial deny prevents claim binding
+- Deny-registry exception prevents claim binding
+- Successful deny evaluation is required before final authorization
 
-Use in-memory deny registry + claim fixtures inline with tests.
+### Boundaries
 
-## Size Forecast
+- Claim helper remains private/non-exported
+- No legacy `promoteStationIdentity()` bypass to `AuthorizedPeerIdentity`
+- No `ACTIVE`
+- No `link.accept`
+- No FSM composition
+- `sourceId` semantics remain OPEN
+- Product actions remain ZERO
 
-Based on oversized 456-NET implementation evidence:
+Boundary exclusions should be verified structurally through the changed surface and import graph rather than through comment-only tests.
 
-- **Production**: 66 NET
-  - claim-authorization.ts: +66/0 (UntrustedPeerClaims + AuthorizedPeerIdentity + authorizePeer + types)
+## Size Forecast and Planning Ceiling
 
-- **Tests**: 123 NET
-  - claim-authorization.test.ts: +123/0 (17 tests)
+Reconciled full Git forecast:
 
-- **Total**: **189 NET**, 189 CHURN
+| Category | Insertions | Deletions | NET | CHURN |
+| --- | ---: | ---: | ---: | ---: |
+| Production | 74 | 0 | 74 | 74 |
+| Tests | 224 | 0 | 224 | 224 |
+| Existing-file modifications | 0 | 0 | 0 | 0 |
+| **Total** | **298** | **0** | **298** | **298** |
 
-**Gate check**:
-- <=300 checkpoint: ✓ **PASS** (189 < 300)
-- <=400 gate: ✓ **PASS** (189 < 400)
+Planning decision:
 
-## Security
+- `<=300` pre-implementation checkpoint: **PASS**
+- Planning headroom: **2 NET lines**
+- Pre-split required now: **NO**
+- Actual final integration gate: `<=400` NET
 
-**Deny-before-claims invariant**:
-- Public `authorizePeer()` calls `evaluateDeny()` FIRST
-- Deny failure → stop, no claim evaluation
-- Only deny success → claim matching
-- No public bypass path
+The 298-NET forecast is the implementation planning ceiling. The `<=400` final gate does not authorize uncontrolled growth.
 
-**Exact claim matching**:
-- Exact string equality (no normalization)
-- Registry values authoritative
-- Claims prove knowledge, not authority
-- Mismatch → fail-closed rejection
+Before or during implementation, if scope or test-design changes make the projected candidate exceed 300 NET, work MUST stop before continuing and return for a security-cohesive split decision. Meaningful security coverage MUST NOT be deleted, weakened, hidden, or compressed merely to stay under 300.
 
-**Final authorization**:
-- AuthorizedPeerIdentity is FINAL
-- Produced only after deny + claim checks pass
-- serialNumber NOT included (credential evidence only)
-- No further authorization gates before B1c ACTIVE
+## Security Invariants
 
-**Authority boundaries preserved**:
-- Certificate-derived: installationId, fingerprint256 (serialNumber excluded from final)
-- Registry-derived: endpointRole, stationId, centerId, sourceId, registryVersion
-- Network claims: NON-AUTHORITATIVE (comparison only)
-
-**SourceId semantics**: OPEN (relationship to stationId unresolved)
-
-## Product Actions
-
-**ZERO**
-
-This slice performs no registry lookup, no deny evaluation logic, no ACTIVE transition, no link.accept, and no product logic.
+- `authorizePeer()` is the sole normal public producer of `AuthorizedPeerIdentity`.
+- Deny evaluation always precedes claim binding.
+- Deny and deny-registry failures return before claims are evaluated.
+- Claim matching is exact and fail-closed.
+- Source binding is mandatory for stationful and stationless peers.
+- Registry/certificate-derived values remain authoritative.
+- Claims remain non-authoritative.
+- Final identity construction cannot leak `serialNumber`.
+- Legacy promotion cannot bypass the new PR-08 authorization path.
+- Clock plausibility remains a later `ACTIVE`/production gate.
+- Product actions remain ZERO.
 
 ## Next Slice
 
-**PR-08B1c**: ACTIVE Transition + link.accept Emission
-- Consumes AuthorizedPeerIdentity
-- Performs ACTIVE transition
-- Emits link.accept
-- Outside current PR-08B1b scope
+### B1c2 — ACTIVE / Production Acceptance
+
+B1c2 may consume the successful B1b2b2 authorization result only after its own prerequisites, including clock plausibility, are satisfied. It remains outside PR-08B1b2b2.
