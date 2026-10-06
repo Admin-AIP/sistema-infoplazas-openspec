@@ -251,18 +251,56 @@ vocabulario de auditoría local de transporte; no es un `RejectionCode` wire.
   ni privilegios
 - AND la siguiente conexión aceptada MUST usar un handshake TLS fresco/completo
 
+### Requirement: Perfil estricto ADA PR-07 de `sent_at`
+
+Todo `sent_at` de un sobre PR-07, incluido `link.hello` y `link.accept`, MUST
+aceptar exclusivamente la gramática `YYYY-MM-DDTHH:MM:SS[.fraction](Z|+HH:MM|-HH:MM)`.
+La frase «RFC3339/RFC3339Nano-compatible» no es un criterio operativo suficiente.
+
+- La fecha MUST usar año de exactamente cuatro dígitos, mes y día de exactamente dos; el mes es `01`–`12` y la fecha MUST existir en el calendario gregoriano, incluida la validación de año bisiesto. El sistema MUST NOT reparar una fecha.
+- El separador MUST ser únicamente `T` mayúscula; MUST rechazar `t` minúscula, espacios y alternativas. La hora MUST ser `HH:MM:SS` de dos dígitos, con `HH` `00`–`23`, `MM` `00`–`59` y `SS` `00`–`59`; MUST rechazar el overflow de 24 horas y `SS=60`.
+- Los segundos intercalares están intencionalmente no soportados y MUST rechazarse para comportamiento determinista entre runtimes, sin dependencia de una tabla de segundos intercalares, y porque `sent_at` es observacional mientras época/secuencia poseen la protección de replay. Este contrato MUST NOT definir manejo condicional de segundos intercalares.
+- La fracción MAY estar ausente. Si está presente, MUST ser punto seguido de 1–9 dígitos decimales; MUST rechazar fracción vacía, 10 o más dígitos y separador coma. Debe preservarse exactamente, incluidos precisión y ceros finales.
+- La zona horaria MUST estar presente y ser `Z` mayúscula o un offset firmado `+HH:MM`/`-HH:MM`, con hora `00`–`23` y minuto `00`–`59`. Deben aceptarse `Z`, `+00:00`, `-05:00`, `+05:30` y `+23:59`; MUST rechazar offsets malformados y `-00:00`, que no se acepta como la convención RFC3339 de offset local desconocido. Solo `T` y `Z` mayúsculas son válidas; `t` y `z` minúsculas MUST rechazarse.
+- Después de validar, la implementación MUST preservar exactamente la cadena original aceptada. MUST NOT convertirla a `Z`, cambiar fracciones, eliminar ceros finales, cambiar mayúsculas, reparar fecha/offset ni sustituirla por una reserialización de `Date`.
+
+Este requisito cierra solo formato, calendario y zona horaria. **Clock Plausibility**
+permanece OPEN y separado; B1c1a1 MUST NOT implementarlo. Sigue bloqueando la
+aceptación final posterior capaz de activar y el estado `ACTIVE`.
+
+#### Scenario: Formas estrictas aceptadas y preservadas
+
+- GIVEN `sent_at` es `2024-02-29T23:59:59.1200Z`, `2024-01-01T00:00:00+00:00`, `2024-01-01T00:00:00-05:00`, `2024-01-01T00:00:00+05:30` o `2024-01-01T00:00:00+23:59`
+- WHEN el sobre se valida
+- THEN MUST aceptar la forma válida
+- AND MUST conservar exactamente el string de entrada, incluidos sus ceros finales y offset
+
+#### Scenario: Formas no permitidas de fecha, hora, fracción o zona
+
+- GIVEN un `sent_at` con fecha gregoriana inexistente, `t`/`z` minúscula, espacio, `24:00:00`, `SS=60`, fracción vacía, 10 o más decimales, coma, zona ausente, offset malformado o `-00:00`
+- WHEN el sobre se valida
+- THEN MUST rechazarlo sin reparación, conversión ni reserialización
+- AND MUST NOT aplicar manejo condicional de segundos intercalares
+
 ### Requirement: `link.hello` exacto
 
 Después de mTLS, Usuario PC MUST enviar un sobre PR-07 con:
 
 - `protocol_version=2`, `payload_schema_version=1`;
-- `message_id` válido, `kind=request`, `type=link.hello` y `sent_at`;
-- claims `source_id`, `station_id` y `center_id`;
+- `message_id` válido, `kind=request`, `type=link.hello` y `sent_at` conforme al perfil estricto ADA PR-07;
+- claims `source_id`, `station_id` y `center_id`, que permanecen UNTRUSTED; la semántica de `sourceId` permanece OPEN;
+- `correlation_id` es opcional para `kind=request`: su ausencia es válida y, si está presente, MUST ser un valor no vacío/no solo whitespace conforme al contrato genérico, preservado exactamente, sin autoridad específica de hello ni reemplazo generado;
 - ausencia de `connection_epoch`, `sequence`, `link_id` e `idempotency_key`;
 - payload exacto `{build_version: string no vacío, capabilities: string[]}`,
   donde `capabilities` sea no vacío, sin duplicados e incluya `secure_link_v1`.
 
-El payload MUST NOT duplicar campos del sobre ni contener desafío custom.
+El payload MUST NOT duplicar campos del sobre ni contener desafío custom. Sus
+claves son exactas: cualquier clave de payload desconocida MUST rechazarse.
+
+Los campos externos desconocidos MAY tolerarse inertemente por compatibilidad
+PR-07, pero MUST NOT alterar routing, sobrescribir campos canónicos, crear claims
+alternativos, eludir validación, conceder privilegio ni legalizar metadata de
+hello prohibida.
 
 #### Scenario: Hello válido después de mTLS
 
@@ -274,10 +312,20 @@ El payload MUST NOT duplicar campos del sobre ni contener desafío custom.
 
 #### Scenario: Hello malformado o sin capacidad obligatoria
 
-- GIVEN un hello correlacionable con campos extra prohibidos, payload inválido o sin `secure_link_v1`
+- GIVEN un hello correlacionable con campos extra prohibidos, payload inválido o con clave de payload desconocida, o sin `secure_link_v1`
 - WHEN Dinamizador lo valida
 - THEN MUST impedir `ACTIVE`
 - AND MAY responder respectivamente `HANDSHAKE_MALFORMED` o `CAPABILITY_REQUIRED`
+
+#### Scenario: Correlación opcional y campos externos inertes
+
+- GIVEN un `link.hello` válido sin `correlation_id`, o uno con `correlation_id` no vacío preservable
+- WHEN Dinamizador lo valida
+- THEN MUST aceptar la ausencia y MUST preservar exactamente el valor presente
+- AND MUST NOT asignarle autoridad específica de hello ni generar un reemplazo
+- BUT WHEN el mismo hello contiene un campo externo desconocido
+- THEN MAY tolerarlo inertemente
+- AND MUST NOT permitir que altere routing, campos canónicos, claims, validación, privilegio o metadata prohibida
 
 ### Requirement: `link.accept` exacto y negociación allowlisted
 

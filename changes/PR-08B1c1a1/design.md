@@ -17,10 +17,13 @@ or requires a new cohesive split.
 | `apps/desktop/electron/security/transport/agent-v2-envelope-codec.ts` | production decoder |
 | `apps/desktop/test/main/security/transport/agent-v2-envelope-codec.test.ts` | focused validation tests |
 
-Forecast: **+263/-0**, **NET 263**, **CHURN 263**. This passes the <=300
-planning checkpoint with **37 NET** headroom. A fresh exact checkpoint is
-required before implementation. If it is over 300 NET, stop and propose another
-cohesive split; never weaken validation.
+The prior **278-NET provisional forecast** is planning history only and is not
+automatically promoted. B1c1a1 remains **NOT STARTED** and this contract closure
+grants no implementation authorization. A **NEW fresh preimplementation size
+checkpoint** is required after this closure and before any implementation; if it
+is over 300 NET, stop and propose another cohesive split rather than weakening
+validation. B1c1a2 and B1c1b remain **BLOCKED**; this closure does not alter
+their plans or authorize their implementation.
 
 ## Exact decoding contract
 
@@ -39,18 +42,28 @@ Claims remain **UNTRUSTED**. Their mapping applies no trim, case folding, Unicod
 normalization, canonicalization, repair, fallback, or derivation. They do not
 select a registry, grant authority, or affect privilege.
 
-## Timestamp and compatibility boundary
+## Strict `sent_at` profile and compatibility boundary
 
-`sent_at` is the exact existing PR-07 timestamp contract: RFC3339/
-RFC3339Nano-compatible. Validation must check syntax, a real calendar
-date/time, timezone/offset validity, required timezone, and normative
-fractional seconds. Ad-hoc `Date.parse`-only acceptance is explicitly
-insufficient. This is a **format** boundary only; B1c1a1 does not decide clock
-plausibility.
+`sent_at` uses the authoritative strict ADA PR-07 profile, not merely a
+«RFC3339/RFC3339Nano-compatible» parser. The only accepted grammar is
+`YYYY-MM-DDTHH:MM:SS[.fraction](Z|+HH:MM|-HH:MM)`.
+
+- Date is exactly a four-digit year plus two-digit month/day. Month is `01`–`12`; the date MUST be a real Gregorian calendar date, including leap-year validation, and MUST NOT be repaired.
+- The separator is uppercase `T` only; lowercase `t`, spaces, and alternatives are rejected. Time is two-digit `HH:MM:SS`: `HH` `00`–`23`, `MM` `00`–`59`, and `SS` `00`–`59`; 24-hour overflow and `SS=60` are rejected.
+- Leap seconds are intentionally unsupported and rejected for deterministic cross-runtime behavior, no leap-second-table dependency, and because `sent_at` is observational while epoch/sequence own replay protection. No conditional leap-second handling exists.
+- Fraction is optional. If present, it is a dot plus 1–9 decimal digits. Empty fraction, 10+ digits, and comma separator are rejected. Precision and trailing zeros are preserved exactly.
+- Timezone is mandatory: uppercase `Z` or signed numeric `+HH:MM`/`-HH:MM`, with offset hour `00`–`23` and minute `00`–`59`. Accepted examples are `Z`, `+00:00`, `-05:00`, `+05:30`, and `+23:59`. Malformed offsets and `-00:00` are rejected; `-00:00` is not accepted as RFC3339's unknown-local-offset convention. Uppercase `T` and `Z` only: lowercase `t`/`z` are rejected.
+- Validation preserves the original accepted string exactly. It MUST NOT convert to `Z`, change fractions, trim trailing zeros, uppercase, repair date/offset, or substitute a `Date` reserialization.
+
+Ad-hoc `Date.parse`-only acceptance is explicitly insufficient. This closes only
+format/calendar/timezone. **Clock Plausibility** remains OPEN and separate;
+B1c1a1 MUST NOT implement it. It still blocks later activation-capable final
+accept and `ACTIVE`.
 
 Outer unknown fields are allowed only where normative compatibility permits.
-They cannot affect routing, canonical fields, claims, validation, privilege, or
-prohibited metadata. Unknown payload keys are rejected.
+They cannot alter routing, override canonical fields, create alternate claims,
+bypass validation, grant privilege, or legalize prohibited hello metadata.
+Unknown payload keys are rejected.
 
 ## Exclusions
 

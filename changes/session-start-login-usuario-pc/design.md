@@ -212,7 +212,7 @@ El frame v2 MUST ser un objeto JSON. Los campos conocidos tienen este contrato e
 | `correlation_id` | Obligatorio para `response` y `ack`; opcional para `request`, `command` y `event`, incluidos eventos causados | Si está presente, string no vacío ni compuesto solo por whitespace. | Correlación de mensajes; no tiene semántica de sesión. |
 | `idempotency_key` | Opcional | Si está presente, string no vacío ni compuesto solo por whitespace. | Solo decode/validate. No participa en deduplicación PR-07; schemas futuros decidirán cuándo es obligatorio por operación. |
 | `source_id`, `station_id`, `center_id` | Opcionales en el sobre base PR-07 | Si están presentes, strings no vacíos ni compuestos solo por whitespace. | Datos declarados no confiables. No se transforman; `station_id` nunca se sustituye por `ClientID`, MAC o hostname. |
-| `sent_at` | Obligatorio | String RFC3339; se acepta precisión RFC3339Nano y se exige `Z` o un offset de zona válido. | Solo decode/validate. PR-07 no aplica frescura, skew ni anti-replay. |
+| `sent_at` | Obligatorio | String conforme exclusivamente al perfil estricto ADA PR-07 descrito a continuación: `YYYY-MM-DDTHH:MM:SS[.fraction](Z|+HH:MM|-HH:MM)`. | Solo decode/validate y preservación exacta. PR-07 no aplica frescura, skew ni anti-replay. |
 | `connection_epoch` | Opcional | Entero JSON sin signo representable como `uint64`; se rechazan negativos, fracciones, overflow y tipos no numéricos. | Solo decode/validate. |
 | `sequence` | Opcional | Entero JSON sin signo representable como `uint64`; se rechazan negativos, fracciones, overflow y tipos no numéricos. | Solo decode/validate. Es la única alternativa de orden del sobre; no existe campo `nonce` alternativo. |
 | `link_id` | Opcional | String no vacío ni compuesto solo por whitespace. | Solo decode. Es no confiable y no autoriza nada en PR-07. |
@@ -220,6 +220,19 @@ El frame v2 MUST ser un objeto JSON. Los campos conocidos tienen este contrato e
 | `payload` | Obligatorio | JSON sintácticamente válido, conservado opaco como `json.RawMessage` o equivalente. | PR-07 no interpreta schemas de sesión o negocio. |
 
 Todos los identificadores del sobre —`message_id`, `correlation_id`, `idempotency_key`, `source_id`, `station_id`, `center_id` y `link_id`— son strings opacos: no tienen restricción UUID, no se normalizan, recortan, cambian de caso ni sustituyen. La comprobación de whitespace sirve solo para aceptar/rechazar; el valor aceptado se conserva byte-semánticamente como string.
+
+#### Perfil estricto ADA PR-07 para `sent_at`
+
+`sent_at` acepta **solo** esta gramática: `YYYY-MM-DDTHH:MM:SS[.fraction](Z|+HH:MM|-HH:MM)`. No es suficiente que un parser lo considere «compatible con RFC3339/RFC3339Nano».
+
+- La fecha usa año de exactamente cuatro dígitos, mes y día de exactamente dos dígitos; el mes es `01`–`12` y la fecha debe existir en el calendario gregoriano, incluida la validación de años bisiestos. No se repara ninguna fecha.
+- El separador es únicamente `T` mayúscula; se rechazan `t` minúscula, espacios y alternativas. La hora es `HH:MM:SS` de dos dígitos con `HH` `00`–`23`, `MM` `00`–`59` y `SS` `00`–`59`; se rechazan el desbordamiento de 24 horas y `SS=60`.
+- Los segundos intercalares están deliberadamente no soportados y se rechazan: así se conserva comportamiento determinista entre runtimes, no se depende de una tabla de segundos intercalares y `sent_at` es observacional mientras época/secuencia poseen la protección de replay. No existe manejo condicional de segundos intercalares.
+- La fracción es opcional; si aparece, es un punto seguido de 1–9 dígitos decimales. Se rechazan fracción vacía, 10 o más dígitos y separador coma. La precisión y los ceros finales se preservan exactamente.
+- La zona horaria es obligatoria: `Z` mayúscula o offset numérico firmado `+HH:MM`/`-HH:MM`, con hora `00`–`23` y minuto `00`–`59`. Se aceptan `Z`, `+00:00`, `-05:00`, `+05:30` y `+23:59`; se rechazan offsets malformados y `-00:00`, que no se acepta como la convención RFC3339 de offset local desconocido. Solo se aceptan `T` y `Z` mayúsculas; `t` y `z` minúsculas se rechazan.
+- El validador conserva la cadena original aceptada exactamente. No convierte a `Z`, cambia fracciones, elimina ceros finales, cambia mayúsculas, repara fecha/offset ni sustituye mediante reserialización de `Date`.
+
+Este perfil cierra solamente formato/calendario/zona horaria. **Clock Plausibility** permanece OPEN y separado: B1c1a1 no lo implementa, y sigue bloqueando la aceptación final posterior capaz de activar y el estado `ACTIVE`.
 
 Los campos JSON desconocidos se toleran para compatibilidad futura, pero nunca alteran routing, clasificación o privilegios y no relajan la validación de campos conocidos. La política sobre claves JSON duplicadas queda explícitamente diferida: `encoding/json` no ofrece rechazo estricto automático y no existe requisito aprobado para incorporarlo en PR-07.
 
@@ -296,7 +309,7 @@ La implementación posterior se concentra en `Soft_Usuario_PC/agente-infoplaza/i
 
 La matriz mínima de pruebas incluye:
 
-- cada campo obligatorio/condicional, tipos JSON erróneos, whitespace, enteros negativos/fraccionarios/overflow, versiones/schema no soportados y timestamps RFC3339/RFC3339Nano con zona;
+- cada campo obligatorio/condicional, tipos JSON erróneos, whitespace, enteros negativos/fraccionarios/overflow, versiones/schema no soportados y el perfil estricto ADA PR-07 de `sent_at`: gramática exacta, calendario gregoriano/bisiestos, `T`/`Z` mayúsculas, hora/offset, rechazo de `SS=60`, fracción 1–9 y preservación literal sin reserialización;
 - todos los marcadores de candidatura por separado, en especial candidatos sin `protocol_version`, y prueba de que ningún error v2 invoca legado;
 - unknown fields tolerados y tipos v2 desconocidos válidos pero inertes;
 - payload opaco válido, payload ausente o JSON inválido, sin DTO de negocio;
