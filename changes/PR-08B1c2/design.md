@@ -4,18 +4,19 @@
 
 ## Decision
 
-B1c2 is the eventual activation-capable boundary after B1c1a/B1c1b integration,
-but is an umbrella, not a runtime candidate. It may split only after the
-mandatory clock-plausibility architecture decision and fresh integrated-code
-inspection:
+B1c2 is the eventual activation-capable boundary after B1c1a1, B1c1a2, and
+B1c1b integrate. It is an umbrella, not a runtime candidate. Its descendants
+may be proposed only after the mandatory Clock Plausibility Decision and fresh
+integrated-code inspection:
 
 ```text
-B1b2b2 COMPLETE + integrated
-  -> B1c1a codec + gateway handoff
-  -> B1c1b authorized/negotiated non-active result
-  -> clock plausibility architecture decision
+B1b2b2 COMPLETE + INTEGRATED
+  -> B1c1a1 COMPLETE + INTEGRATED
+  -> B1c1a2 COMPLETE + INTEGRATED
+  -> B1c1b COMPLETE + INTEGRATED
+  -> Clock Plausibility Decision
   -> B1c2 lifecycle umbrella
-  -> future security/lifecycle-cohesive children
+  -> future security/lifecycle-cohesive descendants
 ```
 
 See [B1c](../PR-08B1c/design.md) and [B1c1b](../PR-08B1c1b/design.md). No
@@ -23,22 +24,26 @@ mechanical `B1c2a`/`B1c2b` split or runtime implementation is authorized today.
 
 ## Blocking clock decision
 
-Clock plausibility remains OPEN. A locally implausible/untrustworthy clock must
-prevent a new ACTIVE transition and cannot bypass X.509 `notBefore`/`notAfter`
-validation because the endpoint is offline
+Clock Plausibility remains OPEN. It does not block B1c1a1, B1c1a2, or B1c1b's
+internal non-active authorization/negotiation. It does block final
+activation-capable accept and ACTIVE/production acceptance. A locally
+implausible/untrustworthy clock must prevent a new ACTIVE transition and cannot
+bypass X.509 `notBefore`/`notAfter` validation because the endpoint is offline
 ([`spec.md:383-409`](../session-start-login-usuario-pc/specs/dinamizador-usuario-pc-secure-link/spec.md)).
+
 Before B1c2 authorization, the decision must settle local-clock evidence,
 certificate-validity/expiry interaction, offline rollback limitation,
 failure/close/reconnect behavior, local event/audit ownership without promising
 durable B2 persistence, and the activation boundary that can emit accept.
 
-Only then may a new inspection assess the integrated B1c1 callback, codec,
-`AuthorizedNegotiatedPeerContext` proposal, authorization flow, and current
-FSM/epoch/sequence facilities for cohesive lifecycle seams.
+Only then may a new inspection assess the integrated B1c1a1 codec, B1c1a2
+handoff, B1c1b composition, authorization flow, and current FSM/epoch/sequence
+facilities for cohesive lifecycle seams. `sourceId` semantics remain OPEN and
+are not reopened by B1c2 planning.
 
 ## Future activation requirements
 
-A later B1c2 child, never B1c1a/b, must:
+A later B1c2 child, never B1c1a1/a2/b, must:
 
 - accept the B1c1b authorized/negotiated non-active result only after clock
   plausibility and current credential validity pass;
@@ -70,8 +75,8 @@ and installation/credential deny remains close-only without a new wire code.
 Planning estimate: new production `+145/-0`, existing `+35/-8`, tests
 `+240/-0`, total `+420/-8`, **NET 412**, **CHURN 428**. It is not measured and
 **NOT VIABLE** as one <=300-NET candidate; the future <=400 actual gate cannot
-rescue it. After clock decision and B1c1 reinspection, a proposal must supply
-new paths, ownership, forecast, and tests before writing code.
+rescue it. After the clock decision and full B1c1 integration, a proposal must
+supply new paths, ownership, forecast, and tests before writing code.
 
 Later tests must cover activation/clock/credential prerequisites; fresh epoch
 per reconnect and uint64 preservation; sequence/replay/gap/overflow,
