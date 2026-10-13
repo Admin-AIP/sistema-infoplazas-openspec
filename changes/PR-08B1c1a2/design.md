@@ -1,13 +1,15 @@
 # Gateway Application Handoff + Transport Validation
 
-## Status: NOT STARTED — dependent on B1c1a1 COMPLETE + INTEGRATED
+## Status: NOT STARTED / NOT AUTHORIZED — B1c1a1 dependency satisfied
 
 ## Decision
 
 B1c1a2 delivers the minimal safe post-mTLS/WSS application handoff needed for
-later B1c1b composition. It starts only after B1c1a1 is **COMPLETE +
-INTEGRATED**, consumes that integrated codec, and **must not duplicate**
-parsing or validation.
+later B1c1b composition. B1c1a1 is now **COMPLETE + INTEGRATED**, so this
+dependency is satisfied. That fact does not authorize or begin B1c1a2.
+B1c1a2 requires a separate maintainer authorization and fresh exact checkpoint,
+will consume the integrated codec, and **must not duplicate** parsing or
+validation.
 
 ## Planned surfaces and delivery gate
 
@@ -56,6 +58,8 @@ ACTIVE; Clock Plausibility; sequence/replay/lifecycle; durable audit
 persistence; and product actions. Product actions are **ZERO**.
 
 Clock Plausibility remains OPEN but does not block this non-active handoff.
-`sourceId` semantics remain OPEN and are not reopened. This slice is complete
-only after implementation is integrated. That integration, together with
-B1c1a1's, is the prerequisite for B1c1b reforecast and readiness.
+`sourceId` semantics remain OPEN and are not reopened. B1c1a2 remains **NOT
+STARTED / NOT AUTHORIZED** despite its satisfied B1c1a1 dependency. This slice
+will be complete only after a separately authorized implementation is
+integrated. That future integration, together with B1c1a1's, is the
+prerequisite for B1c1b reforecast and readiness.

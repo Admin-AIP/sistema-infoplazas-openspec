@@ -10,8 +10,8 @@ is complete only when both children are **COMPLETE + INTEGRATED** in order:
 
 ```text
 B1b2b2
-  -> B1c1a1 PR-07 Envelope Codec + Focused Validation
-  -> B1c1a2 Gateway Application Handoff + Transport Validation
+  -> B1c1a1 COMPLETE + INTEGRATED — PR-07 Envelope Codec + Focused Validation
+  -> B1c1a2 NOT STARTED / NOT AUTHORIZED — Gateway Application Handoff + Transport Validation
   -> B1c1b
 ```
 
@@ -47,6 +47,16 @@ implementation started under either estimate.
 
 If either checkpoint exceeds 300 NET, stop and propose a further cohesive
 split. Validation must not be weakened to fit the gate.
+
+## Current delivery state
+
+- B1c1a1 is COMPLETE + INTEGRATED at Dinamizador commit
+  `3e4f2360b74b48ac370c2fcf59f03e2a33d9c0b7`, with an actual +260/-0.
+- B1c1a2's B1c1a1 dependency is satisfied, but B1c1a2 remains **NOT STARTED /
+  NOT AUTHORIZED** until a separate maintainer authorization and fresh exact
+  checkpoint.
+- The B1c1a umbrella remains incomplete until B1c1a2 is also COMPLETE +
+  INTEGRATED. B1c1b remains blocked until then.
 
 ## Shared gates and exclusions
 

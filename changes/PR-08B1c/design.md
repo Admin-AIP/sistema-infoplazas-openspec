@@ -1,6 +1,6 @@
 # PR-08B1c Secure-Link Delivery Reconciliation
 
-## Status: NOT STARTED — design approved; implementation not authorized
+## Status: IN PROGRESS — B1c1a1 COMPLETE + INTEGRATED; later slices not authorized
 
 ## Decision
 
@@ -8,12 +8,13 @@ B1c1a is retained solely as an architectural umbrella. It is **not** an
 implementation candidate and becomes complete only when both
 [B1c1a1](../PR-08B1c1a1/design.md) and [B1c1a2](../PR-08B1c1a2/design.md) are
 **COMPLETE + INTEGRATED**. The former 218-NET B1c1a forecast was superseded by
-deeper read-only planning; no B1c1a implementation has started.
+deeper read-only planning. B1c1a1 is now COMPLETE + INTEGRATED; the B1c1a
+umbrella remains incomplete until B1c1a2 is also integrated.
 
 ```text
 B1b2b2 COMPLETE + INTEGRATED
-  -> B1c1a1 PR-07 Envelope Codec + Focused Validation
-  -> B1c1a2 Gateway Application Handoff + Transport Validation
+  -> B1c1a1 COMPLETE + INTEGRATED — PR-07 Envelope Codec + Focused Validation
+  -> B1c1a2 NOT STARTED / NOT AUTHORIZED — Gateway Application Handoff + Transport Validation
   -> B1c1b Authorization + Negotiation Composition
   -> Clock Plausibility Decision
   -> B1c2 descendants
@@ -28,8 +29,8 @@ of the seven-field `AuthorizedPeerIdentity`.
 | Slice | State | Produces | Never produces |
 | --- | --- | --- | --- |
 | [B1c1a](../PR-08B1c1a/design.md) | ARCHITECTURAL UMBRELLA | sequencing and completion criteria | an implementation candidate |
-| [B1c1a1](../PR-08B1c1a1/design.md) | NOT STARTED | decoded, untrusted PR-07 hello | gateway handoff, authority, accept, ACTIVE |
-| [B1c1a2](../PR-08B1c1a2/design.md) | NOT STARTED; dependent on B1c1a1 integration | safe post-mTLS/WSS application handoff | parsing duplication, authority, accept, ACTIVE |
+| [B1c1a1](../PR-08B1c1a1/design.md) | COMPLETE + INTEGRATED at `3e4f2360b74b48ac370c2fcf59f03e2a33d9c0b7` | decoded, untrusted PR-07 hello | gateway handoff, authority, accept, ACTIVE |
+| [B1c1a2](../PR-08B1c1a2/design.md) | NOT STARTED / NOT AUTHORIZED; B1c1a1 dependency satisfied | safe post-mTLS/WSS application handoff | parsing duplication, authority, accept, ACTIVE |
 | [B1c1b](../PR-08B1c1b/design.md) | NOT STARTED; NOT READY | later authorized/negotiated, non-active internal result | `link.accept`, epoch, product eligibility |
 | [B1c2](../PR-08B1c2/design.md) | BLOCKED / planning | later lifecycle children | an implementation candidate |
 
@@ -70,7 +71,8 @@ forecast the unsplit monolith as follows:
 That is **NET 370**, **CHURN 374**: the mandatory <=300 planning checkpoint
 **FAILS**. The <=400 final project gate does not override that failure. The
 cohesive delivery split is B1c1a1 (+263/-0; NET 263; CHURN 263) followed by
-B1c1a2 (+109/-2; NET 107; CHURN 111), never a combined candidate.
+B1c1a2 (+109/-2; NET 107; CHURN 111), never a combined candidate. B1c1a1
+integrated at an actual +260/-0 (NET/CHURN 260), within its approved gate.
 
 Each child requires a fresh exact checkpoint immediately before implementation.
 If a child exceeds 300 NET, stop and propose another cohesive split; never

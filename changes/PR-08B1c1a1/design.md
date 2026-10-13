@@ -1,6 +1,25 @@
 # PR-07 Envelope Codec + Focused Validation
 
-## Status: NOT STARTED — approved preimplementation design only
+## Status: COMPLETE + INTEGRATED
+
+## Integration closure
+
+B1c1a1 was implemented as the exact two-file codec slice and integrated into
+Dinamizador `origin/master` by normal fast-forward at commit
+`3e4f2360b74b48ac370c2fcf59f03e2a33d9c0b7` (tree
+`015cd49748c8b82c6f624a7983ae9a7cc3a02129`, parent
+`bcef13adde52b59b462c5096824be73b3d5295d9`). Issue #1 and PR #2 provide the
+publication trail. The final candidate is +260/-0 across the two planned paths.
+
+Focused codec tests passed 56/56, full `main/security` passed 299/299,
+TypeScript passed, and `git diff --check` passed. Manual product validation was
+recorded as not applicable because the slice is a pure decoder with no product
+wiring; focused public-contract tests own its functional validation.
+Architectural review is maintainer-recorded through an independent APPROVE and
+four approved native lenses. Their original durable receipts are unavailable
+from the current workspace and are not presented as independently verifiable.
+The later post-publication verifier also failed without a verdict and is
+recorded as a separate limitation, not as a replacement review.
 
 ## Decision
 
@@ -10,20 +29,19 @@ has **no** gateway callback or application handoff. If a meaningful gateway
 production modification becomes necessary, stop; that work belongs to B1c1a2
 or requires a new cohesive split.
 
-## Planned surfaces and delivery gate
+## Implemented surfaces and delivery result
 
 | Surface | Planned role |
 | --- | --- |
 | `apps/desktop/electron/security/transport/agent-v2-envelope-codec.ts` | production decoder |
 | `apps/desktop/test/main/security/transport/agent-v2-envelope-codec.test.ts` | focused validation tests |
 
-The prior **278-NET provisional forecast** is planning history only and is not
-automatically promoted. B1c1a1 remains **NOT STARTED** and this contract closure
-grants no implementation authorization. A **NEW fresh preimplementation size
-checkpoint** is required after this closure and before any implementation; if it
-is over 300 NET, stop and propose another cohesive split rather than weakening
-validation. B1c1a2 and B1c1b remain **BLOCKED**; this closure does not alter
-their plans or authorize their implementation.
+The prior **278-NET provisional forecast** remains planning history. The fresh
+implementation checkpoint completed at **260 NET / 260 CHURN**, passing the
+mandatory <=300 gate without weakening validation. B1c1a1 integration satisfies
+B1c1a2's dependency, but B1c1a2 remains **NOT STARTED / NOT AUTHORIZED** until a
+separate maintainer authorization and fresh checkpoint. B1c1b remains blocked
+until both B1c1a1 and B1c1a2 are COMPLETE + INTEGRATED.
 
 ## Exact decoding contract
 
@@ -73,9 +91,9 @@ certificate extraction, registry/deny/`authorizePeer`, capability negotiation,
 durable audit, and product actions. Product actions are **ZERO**.
 
 Clock Plausibility remains OPEN but does not block this codec/format work.
-`sourceId` semantics also remain OPEN and are not reopened here. B1c1a1 is
-complete only when its approved implementation is integrated; only then may
-B1c1a2 begin.
+`sourceId` semantics also remain OPEN and are not reopened here. B1c1a1 is now
+COMPLETE + INTEGRATED. B1c1a2's dependency is satisfied, but this closure does
+not authorize or begin B1c1a2.
 
 ## Future test ownership
 
