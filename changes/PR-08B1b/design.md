@@ -1,5 +1,16 @@
 PR-08B1b X.509 IDENTITY DESIGN
 
+NORMATIVE PROMOTION STATUS
+
+The URI SAN v1 encoding, certificate-versus-registry split, credential
+fingerprint/serial allowlisting and deny-first precedence in this design are
+promoted to the normative secure-link specification. This document remains the
+design rationale and implementation boundary. `sourceId` business semantics,
+enrollment authority/bootstrap, offline signer custody, snapshot distribution,
+clock plausibility policy and protected Windows key-adapter selection remain
+OPEN. No promotion authorizes product actions, `ACTIVE`, service deployment or
+CNG selection.
+
 IDENTITY MODEL
 
 installationId:
@@ -71,14 +82,13 @@ PR-08B1b IMPACT
 - product actions: ZERO
 
 OPEN QUESTIONS REMAINING:
-- No X.509 field, syntax, canonicalization, center-placement, duplicate, malformed, missing, or versioning ambiguity remains if this design is approved.
 - Confirm the existing `sourceId` business meaning and whether it is an independent registry field or deterministically equal to stationId; in either case it is registry-derived, never certificate-derived or claim-authoritative.
-- Production PKI tooling must demonstrate issuance of the exact URI SAN from an authorized CSR/provisioning transaction and rejection of requester-supplied unauthorized identity values; physical protected-key provisioning remains the separate recorded open requirement.
+- Production PKI tooling must demonstrate issuance of the exact URI SAN from an authorized CSR/provisioning transaction and rejection of requester-supplied unauthorized identity values; bootstrap/trust authority, offline signer custody and physical protected-key provisioning remain separate open requirements.
 - The registry synchronization/high-water mechanism must preserve monotonic center reassignment and deny updates; its transport/storage implementation is outside this encoding decision.
-- Skill resolution was `fallback-path`: no parent-injected phase-skill path was supplied, so the explicit Gentle AI and cognitive-document design skill paths were used without registry discovery.
+- Clock plausibility policy, including the candidate five-minute rollback and 30-day snapshot thresholds, remains unapproved.
 
 MAINTAINER DECISIONS REQUIRED:
-- Approve the authoritative SAN URI namespace and canonical UUIDv4 installationId contract, including exact rejection rather than normalization.
-- Approve registry-derived stationId, centerId, and sourceId, plus credential fingerprint/serial allowlisting and deny precedence.
-- Approve the documented offline reassignment/revocation limitation and the recommendation to rotate credentials for high-risk physical transfers.
+- Approve enrollment authority, trust bootstrap, offline signer custody and snapshot distribution.
+- Define `sourceId` semantics.
+- Approve, revise or reject clock-plausibility policy separately from this identity encoding.
 - Under `ask-on-risk`, choose the delivery strategy for the forecast 450–610 NET change: approve a bounded subdivision and chain strategy, or explicitly accept a separately authorized size exception; no exception is currently approved.

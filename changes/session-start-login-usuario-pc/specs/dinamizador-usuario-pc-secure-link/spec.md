@@ -90,9 +90,26 @@ centro. La identidad humana del operador MUST permanecer separada.
 `station_id`, `center_id`, `source_id` y `link_id` del sobre MUST permanecer
 claims hasta comprobarlos contra certificado, registro autorizado y binding de
 centro. IP, MAC, hostname, nombre visible o mDNS MUST NOT conferir identidad.
-La codificación concreta de identidad de negocio en X.509 permanece como **OPEN
-REQUIREMENT**; hasta aprobarla, B1b MUST permanecer bloqueado y ninguna
-implementación puede inventar un mapping CN/O/OU/SAN/custom extension.
+
+La identidad de negocio certificada MUST ser exclusivamente `installationId` en
+exactamente un URI SAN RFC 5280 `GeneralName.uniformResourceIdentifier`:
+`urn:infoplazas:ada-nova-plus:secure-link:identity:v1:installation:<installationId>`.
+`installationId` MUST ser un UUIDv4 ASCII canónico en minúsculas que cumpla
+`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`.
+No se admite query, fragment, percent-escape, whitespace, Unicode, slash
+alternativo, delimitador final, normalización, case-folding, percent-decoding ni
+equivalencia URI. Un segundo URI del namespace reservado —incluso idéntico— o
+una versión distinta de `v1` MUST rechazar identidad sin fallback. CN/O/OU, DNS
+SAN, extensiones custom y otros SAN MAY existir pero MUST ser no autoritativos.
+
+`stationId`, `centerId` y `sourceId` MUST permanecer fuera del certificado hasta
+una aprobación contractual posterior. El registry local autorizado, seleccionado
+únicamente por `installationId` derivado del certificado, MUST aportar rol,
+station/center/source, estado de autorización, versión y allowlist explícita de
+fingerprint o serial de credencial activa/cutover. La semántica de `sourceId`
+permanece OPEN; ningún claim de red puede seleccionar, reparar o normalizar un
+registro. Deny por instalación o credencial MUST evaluarse antes de allow y
+prevalece sobre cualquier overlap de cutover.
 
 #### Scenario: Identidad y centro coinciden
 
@@ -122,20 +139,35 @@ implementación puede inventar un mapping CN/O/OU/SAN/custom extension.
 ### Requirement: Enrolamiento y almacenamiento protegido
 
 Cada endpoint MUST generar su clave privada localmente y usar CSR. La emisión
-MUST requerir autorización mediante flujo online o paquete offline firmado. Todo paquete offline MUST estar vinculado exactamente al CSR y nonce actuales, y MUST avanzar un estado de autorización monotónico (high-water mark) para prevenir replay y rollback. La
-raíz/CA pública MUST fijarse localmente para confianza runtime offline. La
-provisión física del certificado y clave de servidor Dinamizador permanece como
-**OPEN REQUIREMENT**: las fixtures TEST-ONLY no seleccionan fuente, carga
-protegida, binding de instalación, reemplazo ni procedimiento operacional de
-producción, y la clave privada firmante de CA MUST permanecer fuera del endpoint.
+MUST requerir autorización mediante flujo online o paquete offline firmado. El
+CSR y certificado emitido MUST tener binding exacto de SPKI; un certificado cuyo
+SPKI no coincide con el CSR vigente MUST rechazarse aunque cadena y URI SAN sean
+válidos. Todo paquete offline MUST incluir al menos schema/version, package ID,
+installationId objetivo, hash SPKI del CSR, nonce actual del CSR,
+emisión/expiración, cadena de certificado, versión de registry/snapshot y
+identidad del firmante. Debe verificarse firma, trust root explícita, target,
+SPKI, nonce, vigencia, schema y high-water mark monotónico antes de aplicar el
+paquete. Un paquete usado, stale, reemplazado, mismatched o replayed MUST fallar
+cerrado sin cambiar credencial, registry ni high-water mark. La autoridad de
+enrolamiento, bootstrap de trust, custodia del firmante offline y distribución
+operativa permanecen OPEN.
+
+La raíz/CA pública y los intermediates aprobados MUST fijarse localmente para
+confianza runtime offline; system trust por sí solo es insuficiente. La CA
+privada firmante MUST permanecer fuera de endpoints. Un peer requiere cadena y
+tiempo válidos, URI SAN v1 exacto, registry local, rol esperado, binding de
+centro esperado, allowlist explícita de fingerprint/serial y ausencia de deny.
+TLS revocation y business deny son controles independientes; cualquiera deniega.
+Durante aislamiento se impone el último registry/deny local confiable y no se
+promete revocación global inmediata.
 
 En Windows, las claves privadas MUST usar almacenamiento protegido y ACL
-restrictiva. Un spike MUST seleccionar Certificate Store/CNG cuando sea práctico
-o almacenamiento de aplicación protegido con DPAPI. El adaptador seleccionado
-MUST demostrar que la clave privada nunca sale de la instalación y que no existe
-ruta de texto plano, exportación o copia. Si DPAPI no demuestra protección
-equivalente, MUST fallar el spike. Esta especificación MUST NOT seleccionar el
-adaptador antes del spike.
+restrictiva. La selección final del adaptador CNG/Certificate Store/DPAPI
+permanece bloqueada hasta que un spike bajo identidad dedicada
+`NT SERVICE\InfoplazaSecureLink` demuestre no exportación, ausencia de copia o
+texto plano, uso exclusivo por esa identidad y denegación a procesos de la
+cuenta estudiantil compartida. Esta especificación no selecciona adaptador ni
+autoriza despliegue de servicio.
 
 #### Scenario: Provisionamiento offline autorizado
 
