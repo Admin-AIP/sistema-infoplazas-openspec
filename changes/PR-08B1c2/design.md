@@ -1,6 +1,6 @@
 # PR-08B1c2 ACTIVE / Lifecycle Umbrella
 
-## Status: BLOCKED — planning only; NOT IMPLEMENTATION READY
+## Status: POLICY DIRECTION APPROVED — IMPLEMENTATION BLOCKED
 
 ## Decision
 
