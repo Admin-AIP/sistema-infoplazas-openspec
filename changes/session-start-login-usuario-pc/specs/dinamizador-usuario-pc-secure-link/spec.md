@@ -510,13 +510,33 @@ se emitió `link_id`, cada frame post-ACTIVE MUST coincidir. El FIFO PR-07 por
 `sent_at` MUST permanecer obligatorio y observacional para auditoría; MUST NOT
 ser la defensa primaria de replay ni el reloj de certificado. X.509
 `notBefore/notAfter` MUST validarse con reloj de pared del OS local y MUST NOT
-depender de Internet/NTP. Un reloj local implausible o no confiable MUST impedir
-una nueva transición a `ACTIVE`; MUST NOT omitir validación temporal. Una
-conexión MUST cerrarse no después de `notAfter` del certificado peer. La
-arquitectura MUST registrar que protección absoluta contra rollback del reloj es
-imposible totalmente offline sin tiempo confiable. Los criterios, fuentes y
-comportamiento concretos de plausibilidad del reloj permanecen como **OPEN
-REQUIREMENT**; las primitivas B1a1 no lo resuelven.
+depender de Internet/NTP. Una conexión MUST cerrarse no después de `notAfter`
+del certificado peer.
+
+Por cada binding exacto `(installationId, certificateFingerprint256)`, el
+endpoint conserva evidencia local protegida con dos valores independientes:
+`highestAcceptedWallClockMs`, high-water mark monotónico contra rollback, y
+`trustedTimeProofIssuedAtMs`, fecha de emisión de una prueba temporal firmada y
+validada. Actividad ordinaria, `link.accept` y el avance del high-water MUST
+NOT renovar `trustedTimeProofIssuedAtMs`; el high-water MUST NOT reducirse.
+
+Antes de una futura autorización, `currentWallClockMs + 300000 <
+highestAcceptedWallClockMs` MUST impedir una nueva transición a `ACTIVE`. Una
+tolerancia menor o igual a 300000 ms MUST NOT reducir el high-water. La
+persistencia atómica de un high-water no decreciente MUST completarse antes de
+emitir un futuro `link.accept`.
+
+El umbral de 30 días para `currentWallClockMs - trustedTimeProofIssuedAtMs` es
+CANDIDATO NO OPERATIVO: autoridad, firma, vigencia, distribución, replay y
+recuperación extraordinaria de la prueba permanecen OPEN. No es garantía de
+tiempo seguro offline ni protección absoluta contra rollback. La ausencia de
+Internet por sí sola MUST NOT rechazar una autorización cuando la evidencia
+local aprobada sea válida. Corrupción, binding inválido, evidencia no
+provisionada o fallo de persistencia MUST fallar cerrado. Una discrepancia de
+reloj MUST NOT por sí sola cerrar aplicaciones o finalizar sesiones estudiantiles
+ni cerrar retroactivamente un enlace ya `ACTIVE`; los cierres de seguridad ya
+exigidos, incluida expiración X.509, permanecen vigentes. Esta política no
+autoriza `link.accept`, `ACTIVE`, handlers ni acciones de producto.
 
 #### Scenario: Certificado expira durante conexión
 

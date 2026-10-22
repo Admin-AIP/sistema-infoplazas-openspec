@@ -1,6 +1,6 @@
 # PR-08B1c Secure-Link Delivery Reconciliation
 
-## Status: NOT STARTED — design approved; implementation not authorized
+## Status: IN PROGRESS — B1c1a2 and B1c1b integrated; B1c2 implementation blocked
 
 ## Decision
 
@@ -8,7 +8,7 @@ B1c1a is retained solely as an architectural umbrella. It is **not** an
 implementation candidate and becomes complete only when both
 [B1c1a1](../PR-08B1c1a1/design.md) and [B1c1a2](../PR-08B1c1a2/design.md) are
 **COMPLETE + INTEGRATED**. The former 218-NET B1c1a forecast was superseded by
-deeper read-only planning; no B1c1a implementation has started.
+deeper read-only planning; the integrated child history below is authoritative.
 
 ```text
 B1b2b2 COMPLETE + INTEGRATED
@@ -28,9 +28,9 @@ of the seven-field `AuthorizedPeerIdentity`.
 | Slice | State | Produces | Never produces |
 | --- | --- | --- | --- |
 | [B1c1a](../PR-08B1c1a/design.md) | ARCHITECTURAL UMBRELLA | sequencing and completion criteria | an implementation candidate |
-| [B1c1a1](../PR-08B1c1a1/design.md) | NOT STARTED | decoded, untrusted PR-07 hello | gateway handoff, authority, accept, ACTIVE |
-| [B1c1a2](../PR-08B1c1a2/design.md) | NOT STARTED; dependent on B1c1a1 integration | safe post-mTLS/WSS application handoff | parsing duplication, authority, accept, ACTIVE |
-| [B1c1b](../PR-08B1c1b/design.md) | NOT STARTED; NOT READY | later authorized/negotiated, non-active internal result | `link.accept`, epoch, product eligibility |
+| [B1c1a1](../PR-08B1c1a1/design.md) | COMPLETE + INTEGRATED — GitHub PR #2 | decoded, untrusted PR-07 hello | gateway handoff, authority, accept, ACTIVE |
+| [B1c1a2](../PR-08B1c1a2/design.md) | COMPLETE + INTEGRATED — GitHub PR #6 (`2fad54c`); historic QA/correction evidence retained | safe post-mTLS/WSS application handoff | parsing duplication, authority, accept, ACTIVE |
+| [B1c1b](../PR-08B1c1b/design.md) | COMPLETE + INTEGRATED — GitHub PR #12 (`7f0d588`) | authorized/negotiated, non-active internal result | `link.accept`, epoch, product eligibility |
 | [B1c2](../PR-08B1c2/design.md) | BLOCKED / planning | later lifecycle children | an implementation candidate |
 
 ## Normative boundaries
