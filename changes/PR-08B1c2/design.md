@@ -19,8 +19,34 @@ B1b2b2 COMPLETE + INTEGRATED
   -> future security/lifecycle-cohesive descendants
 ```
 
-See [B1c](../PR-08B1c/design.md) and [B1c1b](../PR-08B1c1b/design.md). No
-mechanical `B1c2a`/`B1c2b` split or runtime implementation is authorized today.
+See [B1c](../PR-08B1c/design.md) and [B1c1b](../PR-08B1c1b/design.md).
+The activation-capable B1c2 boundary remains unimplemented and unauthorized.
+
+## Integrated non-activating Clock Evidence admission
+
+Dinamizador PR #22, `feat(security): add clock evidence admission`, was merged
+at `e4f35a086a9794e43d1d49619380d1134e70fac2`. It integrates a bounded,
+non-activating Clock Evidence admission refinement. Its Quality CI completed
+successfully, and its reported repository verification was 378/378 passing
+checks.
+
+The merged scope records only these Clock Evidence behaviors:
+
+- private persistence advances the accepted high-water wall-clock value
+  monotonically;
+- rollback detection uses a 300,000 ms tolerance;
+- store advancement uses interprocess exclusion and fails closed when the lock,
+  storage, or protected storage cannot establish the required result; and
+- interrupted-write recovery is restricted to quiescent cleanup of inherited
+  lock artifacts. It does not infer ownership, restore authority, or perform
+  automatic recovery.
+
+This evidence does **not** authorize `link.accept`, `ACTIVE`, institutional
+`connection_epoch` generation, operational admission, a 30-day policy,
+student-session activation, or PR-08U1. It does not settle institutional time
+authority, offline/restart validity, provenance, replay, recovery, certificate
+rotation, or revocation. No independent integration evidence is recorded here
+for B1c2a3 / `CLOCK_EVIDENCE` audit delivery; that work remains pending.
 
 ## Blocking clock decision
 
