@@ -100,15 +100,13 @@ All 11 security & boundary criteria verified:
 - link.accept emission
 - Product actions
 
-## Next Slice
+## Successor Reconciliation
 
-**PR-08B1b2b**: NOT STARTED
+**PR-08B1b2b1 — Contract Bridge + Deny Evaluation**: COMPLETE + INTEGRATED at `97164adf0b0d27ccbce04fbd019d3afa8b0fbe2e`.
 
-**Scope**: Deny registry + binding authorization
-- Will consume RegistryResolvedInstallation from B1b2a
-- Will extend intermediate contract with certificate-derived `serialNumber` for approved deny-by-serial behavior
-- Will implement deny checks (installation, fingerprint, serial) and final authorization
-- Revised forecast: 187-227 NET (includes contract bridge)
+**PR-08B1b2b2 — Claim Binding + Final Authorization**: COMPLETE + INTEGRATED at `bcef13adde52b59b462c5096824be73b3d5295d9`.
+
+The original successor plan is retained above as historical context. Both successor slices consumed this intermediate B1b2a result; neither introduced `ACTIVE`, `link.accept`, or product actions.
 
 ## Open Requirements
 
