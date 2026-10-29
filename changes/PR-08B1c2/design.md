@@ -5,9 +5,10 @@
 ## Decision
 
 B1c2 is the eventual activation-capable boundary after B1c1a1, B1c1a2, and
-B1c1b integrate. It is an umbrella, not a runtime candidate. Its descendants
-may be proposed only after the mandatory Clock Plausibility Decision and fresh
-integrated-code inspection:
+B1c1b integrate. It is an umbrella, not a runtime candidate. Except for the
+limited B1c2a1 authorization request below, its descendants may be proposed
+only after the mandatory Clock Plausibility Decision and fresh integrated-code
+inspection:
 
 ```text
 B1b2b2 COMPLETE + INTEGRATED
@@ -18,6 +19,24 @@ B1b2b2 COMPLETE + INTEGRATED
   -> B1c2 lifecycle umbrella
   -> future security/lifecycle-cohesive descendants
 ```
+
+### Limited B1c2a1 authorization request
+
+Architecture/Security MAY consider a separately scoped authorization request
+for B1c2a1 before the Clock Plausibility Decision. That request is limited to a
+pure local-consistency evaluator with focused tests. It consumes typed inputs,
+including the independent X.509 date-validation result, and returns typed
+non-authoritative states. It MUST NOT perform I/O, write or repair evidence,
+implement a store, issuer, distribution, audit, or recovery mechanism, modify
+the FSM or wire protocol, affect student sessions, emit `link.accept`, generate
+or reserve `connection_epoch`, enter `ACTIVE`, or grant admission or product
+privilege. It does not declare trusted time and is not an authorization to
+implement, activate, or relax any protected operation.
+
+B1c2a2, B1c2a3, and every activation-capable descendant remain subject to the
+Clock Plausibility Decision and fresh integrated-code inspection. This
+exception only permits a request for explicit Architecture/Security review; it
+is not an approval.
 
 See [B1c](../PR-08B1c/design.md) and [B1c1b](../PR-08B1c1b/design.md).
 The activation-capable B1c2 boundary remains unimplemented and unauthorized.
