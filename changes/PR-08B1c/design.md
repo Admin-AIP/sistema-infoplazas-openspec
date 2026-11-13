@@ -54,10 +54,10 @@ activation-capable accept and ACTIVE/production acceptance. `sourceId`
 semantics remain **OPEN** and are not reopened by these slices. Durable audit,
 production PKI, and protected server-cert provisioning remain later work.
 
-## Forecast and delivery gates
+## Historic forecast and delivery gates
 
-The prior B1c1a estimate (NET 218) is superseded. Deeper read-only planning
-forecast the unsplit monolith as follows:
+The prior B1c1a estimate (NET 218) is superseded. Before implementation, deeper
+read-only planning forecast the unsplit monolith as follows:
 
 | Area | Additions/deletions |
 | --- | ---: |
@@ -67,13 +67,17 @@ forecast the unsplit monolith as follows:
 | gateway tests | +91/-1 |
 | **Total** | **+372/-2** |
 
-That is **NET 370**, **CHURN 374**: the mandatory <=300 planning checkpoint
-**FAILS**. The <=400 final project gate does not override that failure. The
-cohesive delivery split is B1c1a1 (+263/-0; NET 263; CHURN 263) followed by
-B1c1a2 (+109/-2; NET 107; CHURN 111), never a combined candidate.
+That historical monolith forecast is **NET 370**, **CHURN 374**: the mandatory
+<=300 planning checkpoint **FAILS**. The <=400 final project gate does not
+override that failure. The historical split forecast was B1c1a1 (+263/-0; NET
+263; CHURN 263) followed by B1c1a2 (+109/-2; NET 107; CHURN 111), never a
+combined candidate. These are planning figures, not the final child
+measurements.
 
-Each child requires a fresh exact checkpoint immediately before implementation.
-If a child exceeds 300 NET, stop and propose another cohesive split; never
-weaken validation. B1c1b remains NOT STARTED and NOT READY until both children
-are COMPLETE + INTEGRATED, then must be reforecast from actual integrated
-interfaces. Its old 236-NET estimate is not exact authority.
+Each child required a fresh exact checkpoint immediately before implementation.
+If a checkpoint had exceeded 300 NET, delivery would have stopped rather than
+weakening validation. The remote `master` history contains B1c1a1 (`3e4f236`),
+the B1c1a2 correction (`2fad54c`), and B1c1b (`7f0d588`); all three are
+COMPLETE + INTEGRATED. B1c1b's historic 236-NET estimate is not authority for
+new work. The next ordered work remains the Clock Plausibility decision; B1c2
+implementation remains blocked.

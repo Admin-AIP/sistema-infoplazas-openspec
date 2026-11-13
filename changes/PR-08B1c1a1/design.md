@@ -1,29 +1,26 @@
 # PR-07 Envelope Codec + Focused Validation
 
-## Status: NOT STARTED — approved preimplementation design only
+## Status: COMPLETE + INTEGRATED — remote `master` contains `3e4f236`
 
 ## Decision
 
-B1c1a1 delivers only the Dinamizador-side PR-07 Agent v2 outer-envelope
-decoder and its focused validation. It follows B1b2b2 and precedes B1c1a2. It
-has **no** gateway callback or application handoff. If a meaningful gateway
-production modification becomes necessary, stop; that work belongs to B1c1a2
-or requires a new cohesive split.
+B1c1a1 delivered only the Dinamizador-side PR-07 Agent v2 outer-envelope
+decoder and its focused validation. It followed B1b2b2 and preceded B1c1a2. It
+introduced **no** gateway callback or application handoff. Any meaningful
+gateway production modification remained B1c1a2 work or required a new
+cohesive split.
 
-## Planned surfaces and delivery gate
+## Delivered surfaces and checkpoint
 
-| Surface | Planned role |
+| Surface | Delivered role |
 | --- | --- |
 | `apps/desktop/electron/security/transport/agent-v2-envelope-codec.ts` | production decoder |
 | `apps/desktop/test/main/security/transport/agent-v2-envelope-codec.test.ts` | focused validation tests |
 
-The prior **278-NET provisional forecast** is planning history only and is not
-automatically promoted. B1c1a1 remains **NOT STARTED** and this contract closure
-grants no implementation authorization. A **NEW fresh preimplementation size
-checkpoint** is required after this closure and before any implementation; if it
-is over 300 NET, stop and propose another cohesive split rather than weakening
-validation. B1c1a2 and B1c1b remain **BLOCKED**; this closure does not alter
-their plans or authorize their implementation.
+The prior **278-NET provisional forecast** is planning history only. The final
+measurement was **+260/-0, NET/CHURN 260** against `bcef13a`, within the <=300
+checkpoint; it is integrated at `3e4f236`. B1c1a2 and B1c1b subsequently
+integrated as separate slices. This document authorizes no new runtime work.
 
 ## Exact decoding contract
 
