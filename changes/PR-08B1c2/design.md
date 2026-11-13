@@ -1,6 +1,6 @@
 # PR-08B1c2 ACTIVE / Lifecycle Umbrella
 
-## Status: POLICY DIRECTION APPROVED — IMPLEMENTATION BLOCKED
+## Status: POLICY DIRECTION SELECTED — IMPLEMENTATION BLOCKED
 
 ## Decision
 
@@ -67,24 +67,30 @@ authority, offline/restart validity, provenance, replay, recovery, certificate
 rotation, or revocation. No independent integration evidence is recorded here
 for B1c2a3 / `CLOCK_EVIDENCE` audit delivery; that work remains pending.
 
-## Blocking clock decision
+## Clock policy direction and remaining decision
 
-Clock Plausibility remains OPEN. It does not block B1c1a1, B1c1a2, or B1c1b's
-internal non-active authorization/negotiation. It does block final
+The selected direction is institutional signed-time evidence distributed by the
+Dinamizador only as relay/cache. The Dinamizador is never a time authority;
+TPM is excluded from the baseline. See
+[the signed-time provenance ADR](adr-institutional-time-provenance-provisioning.md).
+
+Clock Plausibility remains incomplete. It does not block B1c1a1, B1c1a2, or
+B1c1b's internal non-active authorization/negotiation. It blocks final
 activation-capable accept and ACTIVE/production acceptance. A locally
 implausible/untrustworthy clock must prevent a new ACTIVE transition and cannot
 bypass X.509 `notBefore`/`notAfter` validation because the endpoint is offline
 ([`spec.md:383-409`](../session-start-login-usuario-pc/specs/dinamizador-usuario-pc-secure-link/spec.md)).
 
-Before B1c2 authorization, the decision must settle local-clock evidence,
-certificate-validity/expiry interaction, offline rollback limitation,
-failure/close/reconnect behavior, local event/audit ownership without promising
-durable B2 persistence, and the activation boundary that can emit accept.
+Before B1c2 authorization, Product/Architecture, Security, the institutional
+time authority, IT Operations, Privacy, and the Usuario PC owner must resolve
+the deferred signed-evidence, offline/restart, audit, recovery, and endpoint
+semantics for their respective scope. No candidate tolerance or lifetime is
+approved by this direction.
 
-Only then may a new inspection assess the integrated B1c1a1 codec, B1c1a2
-handoff, B1c1b composition, authorization flow, and current FSM/epoch/sequence
-facilities for cohesive lifecycle seams. `sourceId` semantics remain OPEN and
-are not reopened by B1c2 planning.
+Only after those decisions may a new inspection assess the integrated B1c1a1
+codec, B1c1a2 handoff, B1c1b composition, authorization flow, and current
+FSM/epoch/sequence facilities for cohesive lifecycle seams. `sourceId`
+semantics remain OPEN and are not reopened by B1c2 planning.
 
 ## Future activation requirements
 
