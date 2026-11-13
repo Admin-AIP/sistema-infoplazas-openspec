@@ -1,12 +1,12 @@
 # PR-08B1c1a Envelope Codec + Gateway Application Handoff Umbrella
 
-## Status: ARCHITECTURAL UMBRELLA — NOT an implementation candidate
+## Status: ARCHITECTURAL UMBRELLA — COMPLETE + INTEGRATED
 
 ## Decision
 
-B1c1a is retained only to describe the cohesive delivery boundary formerly
-planned as one candidate. It **MUST NOT** be implemented as one candidate. It
-is complete only when both children are **COMPLETE + INTEGRATED** in order:
+B1c1a describes the cohesive delivery boundary formerly planned as one
+candidate. It **MUST NOT** be implemented as one candidate. Its children are
+complete and integrated in order:
 
 ```text
 B1b2b2
@@ -40,21 +40,22 @@ implementation started under either estimate.
 
 ## Child delivery contracts
 
-| Child | Scope | Forecast | Required gate |
+| Child | Scope | Historical forecast | Delivered measurement and gate |
 | --- | --- | ---: | --- |
-| B1c1a1 | codec plus focused validation only; no gateway callback/handoff | +263/-0; NET 263; CHURN 263 | fresh exact <=300 checkpoint before implementation |
-| B1c1a2 | integrated-codec consumer plus gateway handoff/transport validation | +109/-2; NET 107; CHURN 111 | fresh exact <=300 checkpoint immediately before implementation |
+| B1c1a1 | codec plus focused validation only; no gateway callback/handoff | +263/-0; NET 263; CHURN 263 | actual +260/-0; NET/CHURN 260 against `bcef13a`; COMPLETE + INTEGRATED at `3e4f236` |
+| B1c1a2 | integrated-codec consumer plus gateway handoff/transport validation | +109/-2; NET 107; CHURN 111 | initial +141/-3; NET 138 against `3e4f236`; final +266/-8; NET 258, CHURN 274 against `73dc548`; COMPLETE + INTEGRATED at `2fad54c` |
 
-If either checkpoint exceeds 300 NET, stop and propose a further cohesive
-split. Validation must not be weakened to fit the gate.
+Each delivered child checkpoint remains <=300 NET. No new B1c1a runtime work
+is authorized by this umbrella.
 
 ## Shared gates and exclusions
 
 Clock Plausibility remains **OPEN**. It does not block B1c1a1 or B1c1a2, but
 it blocks final activation-capable accept and ACTIVE/production acceptance.
-`sourceId` semantics remain OPEN and are not reopened. Claims stay untrusted
-until the later B1c1b authorization boundary. Product actions remain **ZERO**.
+`sourceId` semantics remain OPEN and are not reopened. Within B1c1a, claims
+remain untrusted; the separately integrated B1c1b boundary owns later
+authorization and negotiation. Product actions remain **ZERO**.
 
 B1c1a does not redefine protocol authority. See [B1c](../PR-08B1c/design.md)
-for the delivery chain and [B1c1b](../PR-08B1c1b/design.md) for the dependent,
-not-ready authorization/negotiation composition.
+for the delivery chain and [B1c1b](../PR-08B1c1b/design.md) for the separately
+integrated, non-active authorization/negotiation composition.

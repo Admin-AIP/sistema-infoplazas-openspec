@@ -1,25 +1,27 @@
 # Gateway Application Handoff + Transport Validation
 
-## Status: NOT STARTED — dependent on B1c1a1 COMPLETE + INTEGRATED
+## Status: COMPLETE + INTEGRATED — remote `master` contains `2fad54c`
 
 ## Decision
 
-B1c1a2 delivers the minimal safe post-mTLS/WSS application handoff needed for
-later B1c1b composition. It starts only after B1c1a1 is **COMPLETE +
-INTEGRATED**, consumes that integrated codec, and **must not duplicate**
-parsing or validation.
+B1c1a2 delivered the minimal safe post-mTLS/WSS application handoff needed for
+later B1c1b composition. It consumed the integrated B1c1a1 codec without
+duplicating parsing or validation. The initial implementation was `7f870d9`;
+a bounded corrective follow-up is integrated as `2fad54c`.
 
-## Planned surfaces and delivery gate
+## Delivered surfaces and evidence
 
-| Surface | Planned role |
+| Surface | Delivered role |
 | --- | --- |
-| `apps/desktop/electron/security/transport/tls-gateway.ts` | minimal application-handoff seam |
-| `apps/desktop/test/main/security/transport/tls-gateway.test.ts` | handoff, retention, failure, and cleanup tests |
+| `apps/desktop/electron/security/transport/tls-gateway.ts` | minimal application-handoff seam with callback-time generation protection |
+| `apps/desktop/test/main/security/transport/tls-gateway.test.ts` | handoff, pre-gate non-invocation, stale-generation, failure cleanup, and recovery tests |
 
-Forecast: gateway **+18/-1** and tests **+91/-1**, total **+109/-2**, **NET
-107**, **CHURN 111**. This passes the <=300 planning checkpoint. Run a fresh
-exact checkpoint immediately before implementation; if it exceeds 300 NET,
-stop and propose a cohesive split.
+The initial implementation checkpoint against `3e4f236` was **+141/-3, NET
+138, CHURN 144**. The final reconciled corrective checkpoint against `73dc548`
+was **+266/-8, NET 258, CHURN 274**, within the <=300 limit. The delivered correction passed 76 focused gateway
+tests, 308 `main/security` tests, typecheck, the official emitted build, formal
+QA, and independent architecture review. It introduced no additional runtime
+scope beyond these two paths.
 
 ## Handoff boundary
 
