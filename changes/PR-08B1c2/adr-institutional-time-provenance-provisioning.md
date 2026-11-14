@@ -5,11 +5,14 @@
 ## Decision
 
 The functional policy direction is an institutional time authority that signs
-time/provisioning evidence. The Dinamizador MAY cache and relay that signed
-evidence to local consumers, but it is never a time authority and MUST NOT
-mint, extend, repair, or reinterpret signed time.
+time/provisioning evidence. The signing service MUST be operated internally by
+the institution. The Dinamizador MAY cache and relay that signed evidence to
+local consumers, but it is never a time authority and MUST NOT mint, extend,
+repair, or reinterpret signed time.
 
-TPM continuity is excluded from the baseline. It may be assessed later as an
+No third-party or external signer, managed signing service, signing API, or
+provisioning tool is authorized for this direction. TPM continuity is excluded
+from the baseline. It may be assessed later as an
 optional defense-in-depth signal for inventoried, supported hardware; it is
 not a UTC authority and cannot replace institutional signed evidence.
 
@@ -35,7 +38,7 @@ issuer, distribution service, recovery, audit sink, `link.accept`, epoch,
 
 The following are not selected by this ADR:
 
-1. signing format, trust-anchor delivery, key custody, issuer/service owner,
+1. signing format, trust-anchor delivery, key custody, internal service design,
    certificate rotation, revocation, or compromise response;
 2. evidence lifetime, offline window, drift/rollback tolerance, clock sources,
    freshness, or check timing;
@@ -55,7 +58,7 @@ candidate or a 30-day snapshot candidate, is policy authority.
 | --- | --- |
 | Product / Architecture | activation boundary, check timing, existing-`ACTIVE` behavior, and acceptance criteria |
 | Security | evidence format, signer/trust-anchor verification, replay, recovery, rotation, revocation, and incident response |
-| Institutional time authority and IT Operations | issuer/service ownership, key custody, distribution, offline/restart validity, support, and budget |
+| Institutional time authority and IT Operations | internal service ownership, key custody, distribution, offline/restart validity, support, and budget |
 | Privacy | audit minimization, retention, access, export, deletion, and compliance basis |
 | Usuario PC owner | endpoint symmetry, restart semantics, and any User PC-visible behavior before it is concluded or changed |
 
