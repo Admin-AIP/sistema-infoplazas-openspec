@@ -91,7 +91,7 @@ does not claim offline clock-rollback protection.
 **Registry-derived mutable bindings (NOT certificate-bound):**
 - `stationId`: Logical Usuario PC/workstation identity (registry-derived from installationId)
 - `centerId`: Infoplaza/center identity (registry-derived from installationId)
-- `sourceId`: Semantic relationship to stationId remains OPEN (see OPEN REQUIREMENT 5)
+- `sourceId`: Semantic relationship to stationId is RESOLVED (see OPEN REQUIREMENT 5 and `changes/PR-08B1c2/source-id-semantics.md`)
 - Authorization status: registry-derived
 - Deny/revocation: registry-derived; deny overrides allow
 - Active credential fingerprint/serial: registry allowlist required
@@ -159,7 +159,7 @@ Detailed architecture: `changes/PR-08B1b/design.md`
 5
  SOURCEID SEMANTIC RELATIONSHIP TO STATIONID
 
-**Status:** OPEN / unresolved
+**Status:** RESOLVED on 2026-11-21 by `changes/PR-08B1c2/source-id-semantics.md`: `sourceId` is registry-derived, equal to `stationId` for Usuario PC and to `installationId` for the Dinamizador. The text below is the original question, kept for audit.
 
 **Context:** The approved X.509 identity architecture (RESOLVED REQUIREMENT 2) establishes that `sourceId` is registry-derived, not certificate-bound. However, the exact semantic relationship between `sourceId` and `stationId` remains undefined.
 
