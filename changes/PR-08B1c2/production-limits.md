@@ -29,12 +29,15 @@ The WSS gateway of the Dinamizador (`apps/desktop/electron/security/transport/tl
 
 * Up to the ceiling, enrollment is automatic for a clean image without previous identity (secure-link specification);
   no approval is needed.
-* Every automatic enrollment produces a local notice to the Operador del Centro and a synchronizable audit entry, so
-  that the Operador and the Enlace stay aware of new stations. The notice says how many stations are enrolled out of
-  the ceiling (for example "7 of 10").
-* When the ceiling is reached the Operador is told that the center is at its limit. A station that appears beyond the
-  ceiling is not enrolled automatically: the Operador is notified and the enrollment waits for explicit approval.
-* The channel through which the Enlace is notified is not defined here; the synchronizable audit is the baseline.
+* Every automatic enrollment produces a notice in the Dinamizador, shown to whoever is logged in there at that moment
+  (the Operador del Centro or the Enlace), and a synchronizable audit entry. The notice says how many stations are
+  enrolled out of the ceiling (for example "7 of 10").
+* If nobody is logged in, the notice stays pending and is shown at the next login; it is cleared only when the person
+  logged in acknowledges it. The audit entry exists in any case.
+* When the ceiling is reached, the person logged in is told that the center is at its limit. A station that appears
+  beyond the ceiling is not enrolled automatically: the notice asks for explicit approval, which the Operador or the
+  Enlace may give.
+* Notifying the Enlace outside the Dinamizador is not defined here; the synchronizable audit is the baseline.
 
 ## Who may change what
 
@@ -42,9 +45,14 @@ The WSS gateway of the Dinamizador (`apps/desktop/electron/security/transport/tl
   additional stations, one by one, through the existing explicit approval of an over-quota enrollment of the
   secure-link specification; each approval raises the authorized station count of that center and `maxConnections`
   follows it. Every approval is audited.
-* `maxPayload` and `pingIntervalMs` are technical settings: only the Enlace may change them, within the permitted range.
+* Changing the automatic enrollment ceiling itself (for example from 10 to 12) is done only by the Enlace, in the
+  Dinamizador, within the permitted range. The Operador del Centro cannot change it but may still approve extra
+  stations one by one. The change applies at once to new enrollments, without restarting the gateway or dropping the
+  stations that are connected, and `maxConnections` is recomputed from the new count.
+* `maxPayload` and `pingIntervalMs` are technical settings: only the Enlace may change them, within the permitted range,
+  and they take effect when the gateway is restarted.
 * A value outside its permitted range is rejected and the previous value stays in force; nothing is clamped silently.
-* All changes are audited without payload and take effect when the gateway is restarted.
+* All changes are audited without payload.
 
 ## Roles
 
