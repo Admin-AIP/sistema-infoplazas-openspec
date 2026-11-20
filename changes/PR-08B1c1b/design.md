@@ -1,6 +1,8 @@
 # PR-08B1c1b Authorization + Negotiation Composition
 
-## Status: NOT STARTED — NOT READY; approved preimplementation design only
+## Status: COMPLETE + INTEGRATED
+
+Reconciliation (2026-11-20): B1c1a1 and B1c1a2 are COMPLETE + INTEGRATED. This slice is on the Dinamizador master as PR #12 (commit `7f0d588686a56ab6a13c68eca80d798b81809e53`, merged 2026-10-16), after the B1c1a2 correction (PR #6, commit `2fad54ceeba54c1295ac83413532644143e8d2e7`). An independent read-only verification of master at `bbecb65` found the requirements below met except the safe-reject and exception-path tests, which were partial. PR #28 (issue #27, merge commit `7a7382c`, merged 2026-11-20) added a fail-closed catch and the exception-path tests. The composition has no production caller yet: wiring it to the gateway belongs to B1c2 activation work. The decision, forecast and sequencing text below is the original preimplementation design, kept for audit.
 
 ## Decision
 
@@ -80,10 +82,10 @@ private keys, secrets, serial number, or wholesale internal identity/context.
 ## Exclusions, forecast, and future tests
 
 B1c1b retains B1b2b2’s universal exact sourceId binding, including stationless
-roles; `sourceId` semantics remain OPEN and are not reopened. Clock Plausibility
-also remains OPEN: it does not block B1c1b's internal non-active
-authorization/negotiation, but blocks final activation-capable accept and
-ACTIVE/production acceptance. Product actions are **ZERO**.
+roles; `sourceId` semantics remain OPEN and are not reopened. The Clock
+Plausibility gate was superseded by the simplified local policy (see
+`../PR-08B1c2/design.md`); no clock gate applies to this internal non-active
+authorization/negotiation. Product actions are **ZERO**.
 
 It excludes final accept/epoch/uint64, ACTIVE, sequence/replay/gap/overflow,
 replacement/stale/expiry, durable audit, registry/deny changes, legacy-FSM
