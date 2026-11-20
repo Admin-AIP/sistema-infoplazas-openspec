@@ -142,7 +142,7 @@ by this documentation-only umbrella.
 | Dinamizador keys | Prove protected physical certificate/key provisioning. |
 | Trust/delegation | Define trust-bootstrap and delegation distribution. |
 | B1c composition | CLOSED: B1c1a2 and B1c1b are integrated on master, and the exception-path hardening of B1c1b (fail-closed catch plus tests, issue #27, PR #28 in `Admin-AIP/sistema-infoplazas-dinamizador`, merge commit `7a7382c`) was merged on 2026-11-20; wiring the composition to the gateway belongs to B1c2 activation work. |
-| Production limits | CLOSED as a documented decision in `production-limits.md` (accepted 2026-11-20): authorized station quota 10, `maxConnections` 2 x the authorized station count, `maxPayload` 64 KiB, `pingIntervalMs` 15 000 ms, with permitted ranges; the Enlace or the Operador del Centro may authorize stations beyond the quota, only the Enlace may change the technical values. The configuration mechanism stays open for the runtime candidate. |
+| Production limits | CLOSED as a documented decision in `production-limits.md` (accepted 2026-11-20): automatic enrollment up to 10 stations with a notice for every enrollment and approval beyond that, `maxConnections` 2 x the authorized station count, `maxPayload` 64 KiB, `pingIntervalMs` 15 000 ms, with permitted ranges; the Enlace or the Operador del Centro may authorize stations beyond the quota, only the Enlace may change the technical values. The configuration mechanism stays open for the runtime candidate. |
 | Local audit sink | Implement and prove the production durable local `SecurityAuditSink`, separately from central audit governance. |
 | Integration | Perform a fresh integrated-code inspection and prepare a bounded candidate. |
 
