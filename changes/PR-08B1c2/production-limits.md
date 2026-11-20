@@ -30,11 +30,13 @@ The WSS gateway of the Dinamizador (`apps/desktop/electron/security/transport/tl
 * Up to the ceiling, enrollment is automatic for a clean image without previous identity (secure-link specification);
   no approval is needed.
 * Every automatic enrollment produces a notice in the Dinamizador, shown to whoever is logged in there at that moment
-  (the Operador del Centro or the Enlace), and a synchronizable audit entry. The notice says how many stations are
-  enrolled out of the ceiling (for example "7 of 12").
+  (the Operador del Centro or the Enlace), and a synchronizable audit entry. The notice names the station that was
+  enrolled and says how many stations the center has enrolled (for example "7 stations enrolled"). It never shows the
+  count against the ceiling: the ceiling is a safety limit, not a target, and the center enrolls only the stations it
+  actually has.
 * If nobody is logged in, the notice stays pending and is shown at the next login; it is cleared only when the person
   logged in acknowledges it. The audit entry exists in any case.
-* When the ceiling is reached, the person logged in is told that the center is at its limit. A station that appears
+* Only when the ceiling is reached is the person logged in told that the center is at its automatic limit. A station that appears
   beyond the ceiling is not enrolled automatically: the notice asks for explicit approval, which the Operador or the
   Enlace may give.
 * Notifying the Enlace outside the Dinamizador is not defined here; the synchronizable audit is the baseline.
