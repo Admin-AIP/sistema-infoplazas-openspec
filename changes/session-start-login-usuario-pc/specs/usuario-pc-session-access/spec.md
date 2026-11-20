@@ -674,14 +674,14 @@ PR-05B2 MUST preservar la compatibilidad con la función desactivada y sus barre
 
 Usuario PC MUST actuar como cliente WSS sobre TLS 1.3 con mTLS para todo tráfico LAN que aspire a elegibilidad privilegiada. MUST usar una identidad/certificado único por instalación emitido por la CA privada controlada por Infoplazas, verificar la identidad de instalación y centro del Dinamizador y tratar `station_id`, `center_id`, `source_id` y `link_id` como claims hasta contrastarlos con el certificado y registro autorizados. WS en claro, contraseñas compartidas y handshakes criptográficos propios MUST NOT conferir confianza.
 
-La clave privada MUST generarse y permanecer en la instalación bajo almacenamiento Windows protegido y ACL restrictiva. El spike de almacenamiento MUST elegir Certificate Store/CNG o un adaptador DPAPI que demuestre ausencia de ruta de texto plano, exportación o copia y protección equivalente. Usuario PC MUST poder autenticarse runtime sin Internet con credenciales locales no expiradas, trust root público fijado y estado local conocido.
+La clave privada MUST generarse y permanecer en la instalación bajo Windows CNG/Certificate Store y ACL restrictiva; SQLite MUST NOT conservarla. El spike MUST demostrar ausencia de ruta de texto plano, exportación o copia y protección por la identidad de servicio seleccionada. Usuario PC MUST poder autenticarse runtime sin Internet con credenciales locales no expiradas y trust root público fijado; no mantiene una fuente local autoritativa de autorización/deny.
 
 #### Scenario: Usuario PC verifica al Dinamizador offline
 
 - GIVEN Usuario PC no tiene Internet
-- AND conserva una credencial local vigente, trust root fijado y un registro autorizado del Dinamizador para su centro
-- WHEN establece TLS 1.3 mTLS y WSS
-- THEN MUST verificar certificado, identidad de instalación, autorización y binding de centro
+- AND conserva una credencial local vigente y trust root fijado
+- WHEN establece TLS 1.3 mTLS y WSS con Dinamizador
+- THEN MUST verificar certificado e identidad de instalación, y MUST depender de la decisión de autorización/deny del SQLite de Dinamizador para el binding de centro
 - AND MAY continuar a negociación sin ejecutar acción de producto
 
 #### Scenario: Identidad o centro del Dinamizador no coincide

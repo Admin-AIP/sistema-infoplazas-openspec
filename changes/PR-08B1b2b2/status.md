@@ -235,10 +235,10 @@ The following remain OPEN and are explicitly NOT resolved by B1b2b2:
 - Semantic relationship between `sourceId` and `stationId` unresolved
 - No normalization, derivation, or fallback from `stationId`
 
-**Clock plausibility**: OPEN
-- Does not block B1b2b2 claim authorization
-- Does not block production of `AuthorizedPeerIdentity`
-- Continues to block ACTIVE transition and production acceptance (later B1c2 scope)
+**Clock plausibility**: SUPERSEDED
+- Does not block B1b2b2 claim authorization or B1c2.
+- OS-clock X.509 temporal validation remains independently required before
+  `ACTIVE`; no additional trusted-clock or rollback policy is claimed.
 
 **Durable SecurityAudit persistence**: Later scope (B1c or beyond)
 
@@ -269,8 +269,8 @@ The following remain OPEN and are explicitly NOT resolved by B1b2b2:
 ```
 B1b2b2 (COMPLETE)
   → B1c1 — gateway/hello/accept-reject composition WITHOUT ACTIVE
-  → resolve clock plausibility
-  → B1c2 — ACTIVE transition (requires resolved clock plausibility)
+  → B1c2 — ACTIVE transition (requires OS-clock X.509 validation and the
+    current local authorization/store/reconciliation decisions)
 ```
 
 **NOT STARTED**: B1c (awaiting separate authorization)

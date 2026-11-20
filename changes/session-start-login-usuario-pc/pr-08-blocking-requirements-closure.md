@@ -122,9 +122,9 @@ registran como trabajo de SEGUIMIENTO / ASESORAMIENTO para consideración futura
 independiente. R4-heartbeat-delay-overflow fue reproducido determinísticamente
 pero clasificado como no bloqueante por la revisión nativa.
 
-B1b está PLANNED / READY FOR PREFLIGHT (X.509 encoding blocker RESOLVED / APPROVED).
-Subdivisión aprobada: B1b1 (Certificate Identity Extraction) y B1b2 (Registry / Center / Deny Authorization).
-B1c está PLANNED / NOT STARTED (depends on B1b completion).
+B1b está COMPLETE / INTEGRATED: URI-SAN v1, extracción de identidad peer,
+registry/deny y claim binding. B1c está PLANNED / NOT STARTED; B1c2 permanece
+BLOCKED, solo de planificación, hasta cerrar sus dependencias explícitas.
 
 El `master` actual contiene `ws`, WSS con TLS 1.3 + mTLS, integración de HTTP
 Upgrade y la resolución de reanudación TLS (Policy A). El `master` actual NO
@@ -138,7 +138,7 @@ acciones de producto son **CERO** (`Product actions: ZERO`).
 | # | Bloqueador original | Estado | Decisión aprobada que lo cierra |
 | ---: | --- | --- | --- |
 | 1 | Mecanismo de credencial y autenticación | **CLOSED** | Tráfico LAN privilegiado confiable usa WSS sobre TLS 1.3 con mTLS. Usuario PC es cliente WSS y Dinamizador es servidor WSS. Se prohíben WS en claro, contraseña global/compartida y handshake criptográfico propio. |
-| 2 | Autoridad y ceremonia de enrolamiento | **CLOSED** | CA privada controlada por Infoplazas; claves generadas en dispositivo; CSR con emisión online autorizada o paquete offline firmado; trust root público fijado localmente; identidad/certificado por instalación y registro autorizado vinculado a centro. |
+| 2 | Autoridad y ceremonia de enrolamiento | **CLOSED** | CA privada controlada por Infoplazas; claves generadas en dispositivo; CSR con emisión online autorizada; trust root público fijado localmente; identidad/certificado por instalación y registro autorizado vinculado a centro. No existe paquete offline firmado. |
 | 3 | Principal del Dinamizador | **CLOSED** | Cada instalación de Dinamizador posee identidad de máquina y certificado propios, registro autorizado y binding a un centro. La identidad del operador es distinta y posterior. |
 | 4 | Ciclo de vida, revocación, reinstalación y reemplazo | **CLOSED** | Certificados finitos; renovación/reemisión distinta de rotación de clave/nuevo enrolamiento; reinstalación/reemplazo genera clave nueva y deshabilita/revoca la anterior; overlap solo para cutover explícito de una instalación; deny local fail-closed y sincronización central cuando exista. |
 | 5 | Prueba y schema del handshake | **CLOSED** | TLS 1.3 aporta prueba mutua y protección de transcript; 0-RTT deshabilitado. Capa 2 reutiliza PR-07 con `link.hello`, `link.accept` y `link.reject`, schemas mínimos exactos y sin desafío criptográfico propio. |
@@ -163,13 +163,12 @@ privacidad, contenido de widget ni captura de PIN en
   entre estaciones, centros o instalaciones Dinamizador.
 - La autenticación runtime funciona completamente offline con credenciales no
   expiradas, raíz pública fijada localmente y estado local conocido.
-- Las claves privadas se guardan en Windows con ACL restrictiva. Un spike elige
-  Certificate Store/CNG cuando sea práctico o almacenamiento de aplicación
-  protegido con DPAPI.
-- El spike MUST probar que la clave privada nunca sale de la instalación. El
-  adaptador DPAPI solo es aceptable si no presenta ruta de texto plano,
-  exportación o copia y ofrece protección equivalente; de lo contrario falla.
-  Este cierre no selecciona adaptador.
+- Las claves privadas se guardan en Windows CNG/Certificate Store con ACL
+  restrictiva; SQLite no conserva claves privadas.
+- El spike MUST probar que la clave privada nunca sale de la instalación, que no
+  existe ruta de texto plano o copia y que la identidad de servicio seleccionada
+  es la única con acceso. Este cierre selecciona el límite CNG/Certificate Store;
+  el proveedor e integración concretos siguen sujetos al spike.
 
 ## 4. Identidad y autorización de instalación
 
@@ -185,10 +184,42 @@ registro y binding de centro. IP, MAC, hostname, nombre visible y descubrimiento
 mDNS no confieren identidad. La identidad humana del operador permanece
 separada y se evaluará después para autorización de workflow.
 
+**Decisión operativa de enrolamiento local:** Dinamizador podrá aceptar
+automáticamente una estación Usuario PC de imagen limpia, sin identidad previa,
+si existe delegación institucional vigente, pertenece a su `center_id` y queda
+dentro del cupo de inventario autorizado. Cada alta genera aviso local y
+auditoría sincronizable. Una estación de otro centro, cupo excedido o señal de
+sospecha exige confirmación de un operador autenticado del Dinamizador destino;
+el software debe imponer esa autorización, no sólo ocultar un botón. La
+identidad anterior se revoca y conserva para auditoría, nunca se borra. Una
+reimagen conserva el `stationId` de inventario cuando su correlación local es
+válida, pero recibe clave, CSR y credencial nuevos. Inactividad sólo avisa y
+nunca retira una identidad automáticamente.
+
+La autoridad sirve para registrar y aceptar CSR de Usuario PC; no permite emitir
+certificados por sí misma, enrolar Dinamizadores,
+actuar para otro centro ni habilitar acciones de producto. Modelo, fabricante,
+serie y otros datos de hardware pueden facilitar lotes homogéneos, alertar que
+falta renombrar un hostname tras una imagen Acronis sin Sysprep y detectar
+clonación accidental, pero nunca prueban identidad. Una imagen Acronis puede
+contener el software instalado, pero no identidad, clave, certificado, evidencia
+ni estado de enrolamiento; cada destino genera clave y CSR nuevos en su primer
+arranque.
+
+**Cambio confirmado de centro y SQLite local:** cuando un operador autenticado
+del Dinamizador destino confirme, bajo delegación vigente, que una estación se
+unirá a otro `center_id`, Usuario PC vacía o reemplaza su SQLite local antes de
+registrar datos del centro receptor. Genera nueva clave, identidad y CSR, y
+revoca sin borrar la identidad anterior. No copia, sincroniza ni expone al
+receptor usuarios, sesiones, credenciales, auditoría, configuración ni otros
+datos de la base anterior; tampoco modifica datos centrales ni el registro remoto
+del centro de origen. Descubrimiento LAN, hostname o modelo de hardware por sí
+solos no confirman una reasignación.
+
 ## 5. Enrolamiento y ciclo de vida offline
 
-- La clave se genera en el dispositivo y el CSR se aprueba mediante emisión
-  online autorizada o paquete de provisionamiento offline firmado.
+- La clave se genera en el dispositivo y el CSR se aprueba únicamente mediante
+  emisión online autorizada; no existe paquete de provisionamiento offline firmado.
 - La raíz/CA pública se fija localmente; la clave firmante permanece fuera de
   endpoints.
 - Los certificados tienen vigencia finita. Renovación/reemisión de certificado
@@ -297,8 +328,8 @@ estado, no prueba entrega de un frame.
 - `sent_at` es dato observacional/auditable y no reloj primario de replay ni de
   certificado.
 - X.509 `notBefore/notAfter` usa reloj de pared del OS local, sin dependencia de
-  Internet/NTP. Un reloj local implausible/no confiable impide un nuevo ACTIVE.
-  La conexión se cierra no después de `notAfter` del peer.
+  Internet/NTP. Un fallo de validación temporal impide un nuevo ACTIVE. La
+  conexión se cierra no después de `notAfter` del peer.
 - Protección absoluta contra rollback de reloj es imposible totalmente offline
   sin fuente de tiempo confiable; la limitación queda registrada.
 
@@ -350,8 +381,8 @@ integrado ni la descomposición actual:
 | PR-08B1a2a1r | Sub-slices r1, r2a, r2a1 y r2b | CLOSED/INTEGRATED: Policy A (rechazo y auditoría de reanudación TLS). |
 | PR-08B1a2a2 | a2a 179 neto + a2b 367 neto | CLOSED/INTEGRATED: a2a (primitivas y dependencias WSS) + a2b (integración WSS y lifecycle seguro); cada hijo ≤400 neto. |
 | PR-08B1a2b | 265 netas; 371 netas ajustadas por riesgo | PREFLIGHT COMPLETE / READY FOR IMPLEMENTATION / NOT STARTED: una slice de resource controls/hardening; checkpoint obligatorio tras static-limits GREEN, STOP/reportar si la proyección supera 380 netas o el real supera 400; B1a2b1/B1a2b2 son solo PROPOSAL. |
-| PR-08B1b | Planificación futura | PLANNED / BLOCKED por identidad X.509. |
-| PR-08B1c | Planificación futura | PLANNED / NOT STARTED. |
+| PR-08B1b | Registro histórico | COMPLETE / INTEGRATED: URI-SAN, extracción de peer, registry/deny y claim binding. |
+| PR-08B1c | Planificación futura | PLANNED / NOT STARTED; sujeto a los blockers de B1c2. |
 | PR-08B2 | 170–220 forecast histórico | Depende de B1 completo. |
 | PR-08U1 | 250–330 forecast | Tras freeze A1/A2 y aceptación del spike de storage. |
 | PR-08U2 | 230–300 forecast | Depende de U1. |
@@ -364,7 +395,7 @@ ocultar los tamaños reales de sus hijos.
 
 ```text
 Dinamizador:
-PR-02 integrado → A1 CLOSED → A2 CLOSED → B1a1 CLOSED → B1a2a1f CLOSED → B1a2a1 CLOSED → B1a2a1r CLOSED → B1a2a2 CLOSED → B1a2b PREFLIGHT COMPLETE/READY FOR IMPLEMENTATION/NOT STARTED → B1b BLOCKED → B1c → B2 → PR-09 → PR-10 → PR-11
+PR-02 integrado → A1 CLOSED → A2 CLOSED → B1a1 CLOSED → B1a2a1f CLOSED → B1a2a1 CLOSED → B1a2a1r CLOSED → B1a2a2 CLOSED → B1a2b COMPLETE/INTEGRATED → B1b COMPLETE/INTEGRATED → B1c → B2 → PR-09 → PR-10 → PR-11
 
 Usuario PC:
 PR-07B COMPLETE/integrado → freeze contractual PR-08A1/A2
@@ -394,17 +425,19 @@ ni acciones de producto.
 - Revocación global inmediata es imposible durante operación totalmente offline;
   deny/disabled local conocido permanece fail-closed.
 - Rollback absoluto del reloj no puede detectarse offline sin tiempo confiable;
-  reloj local implausible impide nuevas conexiones ACTIVE.
-- El spike de storage todavía debe seleccionar adaptador y demostrar la
-  no salida/exportación/copia de claves privadas.
+  no existe gate adicional de plausibilidad. El reloj del OS valida X.509 y el
+  fallo de esa validación impide nuevas conexiones ACTIVE.
+- El spike de storage debe demostrar el límite ya seleccionado CNG/Certificate
+  Store: no salida/exportación/copia de claves privadas y ACL de identidad de
+  servicio.
 - La política TLS resumption está resuelta (Policy A, CLOSED / INTEGRATED): se
   rechazan las conexiones reanudadas. `SSL_OP_NO_TICKET` por sí solo no
   constituye prueba de no-reanudación bajo Node 22/OpenSSL 3; se conserva como
   defensa en profundidad.
 - La codificación X.509 de identidad de negocio y la provisión física del
   certificado/clave de servidor Dinamizador permanecen OPEN; no se inventan.
-- La plausibilidad del reloj local permanece OPEN aunque existan primitivas de
-  validación temporal.
+- No se reclama protección contra rollback del reloj offline; no queda una
+  política adicional de plausibilidad abierta.
 - Retención, acceso y exportación de auditoría siguen siendo política de negocio;
   no se inventan en esta arquitectura.
 - Cualquier expansión a capacidades o acciones de producto requiere contrato y

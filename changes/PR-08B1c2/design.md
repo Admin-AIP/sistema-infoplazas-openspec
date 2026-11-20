@@ -1,103 +1,96 @@
 # PR-08B1c2 ACTIVE / Lifecycle Umbrella
 
-## Status: POLICY DIRECTION SELECTED — IMPLEMENTATION BLOCKED
+## Status: BLOCKED — planning only; NOT IMPLEMENTATION READY
 
 ## Decision
 
 B1c2 is the eventual activation-capable boundary after B1c1a1, B1c1a2, and
-B1c1b integrate. It is an umbrella, not a runtime candidate. Except for the
-limited B1c2a1 authorization request below, its descendants may be proposed
-only after the mandatory Clock Plausibility Decision and fresh integrated-code
-inspection:
-
-```text
-B1b2b2 COMPLETE + INTEGRATED
-  -> B1c1a1 COMPLETE + INTEGRATED
-  -> B1c1a2 COMPLETE + INTEGRATED
-  -> B1c1b COMPLETE + INTEGRATED
-  -> Clock Plausibility Decision
-  -> B1c2 lifecycle umbrella
-  -> future security/lifecycle-cohesive descendants
-```
-
-### Limited B1c2a1 authorization request
-
-Architecture/Security MAY consider a separately scoped authorization request
-for B1c2a1 before the Clock Plausibility Decision. That request is limited to a
-pure local-consistency evaluator with focused tests. It consumes typed inputs,
-including the independent X.509 date-validation result, and returns typed
-non-authoritative states. It MUST NOT perform I/O, write or repair evidence,
-implement a store, issuer, distribution, audit, or recovery mechanism, modify
-the FSM or wire protocol, affect student sessions, emit `link.accept`, generate
-or reserve `connection_epoch`, enter `ACTIVE`, or grant admission or product
-privilege. It does not declare trusted time and is not an authorization to
-implement, activate, or relax any protected operation.
-
-B1c2a2, B1c2a3, and every activation-capable descendant remain subject to the
-Clock Plausibility Decision and fresh integrated-code inspection. This
-exception only permits a request for explicit Architecture/Security review; it
-is not an approval.
+B1c1b integrate. It is an umbrella, not a runtime candidate. No mechanical
+B1c2a/B1c2b split or runtime implementation is authorized today.
 
 See [B1c](../PR-08B1c/design.md) and [B1c1b](../PR-08B1c1b/design.md).
 The activation-capable B1c2 boundary remains unimplemented and unauthorized.
 
-## Integrated non-activating Clock Evidence admission
+## Historical superseded Clock Evidence record
 
 Dinamizador PR #22, `feat(security): add clock evidence admission`, was merged
-at `e4f35a086a9794e43d1d49619380d1134e70fac2`. It integrates a bounded,
-non-activating Clock Evidence admission refinement. Its Quality CI completed
-successfully, and its reported repository verification was 378/378 passing
-checks.
+at `e4f35a086a9794e43d1d49619380d1134e70fac2`; its Quality CI was reported as
+378/378 passing. Its non-activating Clock Evidence work recorded monotonic
+high-water persistence, a 300,000 ms rollback tolerance, fail-closed store
+handling, and limited interrupted-write cleanup. Those are historical facts,
+not current policy or authorization: the simplified local policy supersedes the
+high-water, rollback, evidence-store, and institutional signed-time direction.
 
-The merged scope records only these Clock Evidence behaviors:
+The former limited B1c2a1 authorization request was likewise limited to a pure
+local-consistency evaluator with no I/O, store, issuer, distribution, audit,
+recovery, FSM, wire, `link.accept`, `connection_epoch`, `ACTIVE`, admission, or
+product privilege. It is retained as historical scope only and does not
+authorize work under the simplified local policy.
 
-- private persistence advances the accepted high-water wall-clock value
-  monotonically;
-- rollback detection uses a 300,000 ms tolerance;
-- store advancement uses interprocess exclusion and fails closed when the lock,
-  storage, or protected storage cannot establish the required result; and
-- interrupted-write recovery is restricted to quiescent cleanup of inherited
-  lock artifacts. It does not infer ownership, restore authority, or perform
-  automatic recovery.
+## Simplified local policy
 
-This evidence does **not** authorize `link.accept`, `ACTIVE`, institutional
-`connection_epoch` generation, operational admission, a 30-day policy,
-student-session activation, or PR-08U1. It does not settle institutional time
-authority, offline/restart validity, provenance, replay, recovery, certificate
-rotation, or revocation. No independent integration evidence is recorded here
-for B1c2a3 / `CLOCK_EVIDENCE` audit delivery; that work remains pending.
+The former institutional signed-time-evidence design is superseded. There is no
+institutional time service, signed evidence, refresh cadence, time trust anchor,
+offline recovery package, or signed high-water rollback tolerance.
 
-## Clock policy direction and remaining decision
+The institutional installer is code-signed only to prove software origin and
+integrity. Runtime local authorization relies on valid X.509 credentials using
+the OS wall clock, trusted local certificate roots, the local authorization
+registry, and locally known deny/revocation/business decisions. Dinamizador's
+local SQLite is the sole authorization/deny source during isolation; it stores
+only installation/station/center/source identity, role, allow/deny state, credential
+fingerprint or serial, version and update marker, and receives online updates
+atomically. Usuario PC has no competing authoritative registry. The system does
+not claim offline clock-rollback protection. A clock that cannot validate X.509
+must prevent `ACTIVE`.
 
-The selected direction is institutional signed-time evidence distributed by the
-Dinamizador only as relay/cache. The Dinamizador is never a time authority;
-TPM is excluded from the baseline. See
-[the signed-time provenance ADR](adr-institutional-time-provenance-provisioning.md).
+An isolated center may continue local operation and reconnect within its known
+center without a time limit while those gates pass. It cannot enroll, replace a
+Dinamizador, change center, or synchronize cloud records while isolated.
+Replacement/reinstallation requires connectivity for the ordinary center
+authorization flow.
 
-Clock Plausibility remains incomplete. It does not block B1c1a1, B1c1a2, or
-B1c1b's internal non-active authorization/negotiation. It blocks final
-activation-capable accept and ACTIVE/production acceptance. A locally
-implausible/untrustworthy clock must prevent a new ACTIVE transition and cannot
-bypass X.509 `notBefore`/`notAfter` validation because the endpoint is offline
-([`spec.md:383-409`](../session-start-login-usuario-pc/specs/dinamizador-usuario-pc-secure-link/spec.md)).
+Dinamizador uses one local SQLite with separate authorization/deny, queued
+record and thirty-day rotating audit tables. Private X.509 keys stay outside
+SQLite in Windows CNG/Certificate Store, accessible only to
+`NT SERVICE\InfoplazaSecureLink`; SQLite and keys deny shared student accounts.
+SQLite changes are atomic. This protects against ordinary users, errors and
+accidental copies, not a local Windows administrator.
 
-Before B1c2 authorization, Product/Architecture, Security, the institutional
-time authority, IT Operations, Privacy, and the Usuario PC owner must resolve
-the deferred signed-evidence, offline/restart, audit, recovery, and endpoint
-semantics for their respective scope. No candidate tolerance or lifetime is
-approved by this direction.
+If the SQLite authorization/deny state becomes unavailable, corrupt, or
+inconsistent, Dinamizador-local continuity is bounded: only a process that
+already loaded and verified intact local authorization state may retain its
+pre-existing local activity. It MUST forbid new sessions or authorizations,
+role or privilege changes, and cloud synchronization until recoverable
+integrity is restored. After restart, or without that prior verified in-memory
+state, authorization-dependent starts MUST be blocked. Known local deny,
+X.509 validation, locally known revocation, and every other existing security
+gate remain enforced; this degraded state MUST NOT create a bypass. Detection
+MUST plainly notify the operator of the degraded state, its continuity scope,
+and the forbidden actions; detection and recovery MUST be recorded where
+available. Before any degraded notice is cleared or updated, the operator MUST
+be plainly notified that recovery and integrity have been verified, including
+the recovery status. This policy is Dinamizador-local only and does not conclude any
+Usuario PC behavior.
 
-Only after those decisions may a new inspection assess the integrated B1c1a1
-codec, B1c1a2 handoff, B1c1b composition, authorization flow, and current
-FSM/epoch/sequence facilities for cohesive lifecycle seams. `sourceId`
-semantics remain OPEN and are not reopened by B1c2 planning.
+When connectivity returns, Dinamizador authenticates to the cloud and atomically
+updates authorization/deny first. Each queued record has an immutable `operationId`
+and carries the authorization version under which it was created; the cloud accepts
+it once or reports it already received. A record created under an authorized version
+is accepted and flagged if authorization was later revoked or its center later
+changed. Dinamizador marks delivery only after confirmation, retries
+transient/partial failures without duplication, and quarantines conflicts (and local records without a valid creation version) without
+deleting or silently uploading them. Quarantined records do not hold later records, except operation types that declare strict ordering. The cloud remains authoritative for
+authorization, deny and center changes; quarantined exceptions are reviewed by an
+authorized reviewer, with the role to be defined (the Enlace is not the default reviewer).
 
 ## Future activation requirements
 
 A later B1c2 child, never B1c1a1/a2/b, must:
 
-- accept the B1c1b authorized/negotiated non-active result only after clock
-  plausibility and current credential validity pass;
+- accept the B1c1b authorized/negotiated non-active result only after current
+  credential validity, local authorization, local deny/revocation/business gates
+  and any applicable local audit gate pass;
 - generate a cryptographically random, nonzero, fresh `connection_epoch` for
   every successful connection/reconnect, never precompute/reserve it earlier;
 - preserve exact uint64 transport semantics without lossy JavaScript `Number`.
@@ -126,11 +119,31 @@ and installation/credential deny remains close-only without a new wire code.
 Planning estimate: new production `+145/-0`, existing `+35/-8`, tests
 `+240/-0`, total `+420/-8`, **NET 412**, **CHURN 428**. It is not measured and
 **NOT VIABLE** as one <=300-NET candidate; the future <=400 actual gate cannot
-rescue it. After the clock decision and full B1c1 integration, a proposal must
-supply new paths, ownership, forecast, and tests before writing code.
+rescue it. After the historical superseded Clock Plausibility Decision and full
+B1c1 integration, a proposal must supply new paths, ownership, forecast, and
+tests before writing code.
 
 Later tests must cover activation/clock/credential prerequisites; fresh epoch
 per reconnect and uint64 preservation; sequence/replay/gap/overflow,
 replacement/stale close/cleanup/expiry; audit-event versus durable-audit
 boundary; and no business behavior before ACTIVE. No runtime test is created
 by this documentation-only umbrella.
+
+## Remaining blockers
+
+| Blocker | Required closure before a runtime candidate |
+| --- | --- |
+| Local state | Bounded continuity is decided: an already verified process retains only pre-existing local activity; unavailable, corrupt, or inconsistent SQLite forbids new sessions/authorizations, role/privilege changes, and cloud synchronization, while restart or absent verified in-memory state blocks authorization-dependent starts until recoverable integrity is restored. Existing security gates remain enforced; clear operator notification and detection/recovery recording where available are required. Independently verify this boundary before a runtime candidate. |
+| Protected store | CLOSED as a spike (T25, L46-L47, run `303513b5`): in a disposable Windows Sandbox a non-exportable ECDSA P-256 machine key in the Microsoft Software KSP with its certificate in `Cert:\LocalMachine\My`, signing through `NT SERVICE\InfoplazaSecureLink`, export refused for the service and an administrator, and non-admin/alternate identities denied (key-file ACL SYSTEM and Administrators full, service SID read, no Users/Everyone ACE). SYSTEM and local administrators can still use the key; no claim blocks them. Remaining before a runtime candidate: confirm on the target Windows builds and on a non-synthetic issuance path, and handle the TPM/PCP `0x80090010` NO-GO. |
+| Reconciliation | CLOSED as a documented contract (accepted 2026-11-20 after two independent verifications), see `reconciliation-wire-contract.md` (generic registry, atomic versioned authorization snapshot first, immutable `operation_id`, accept-once results, FIFO per center without holding later records, authorization by creation version, quarantine only for conflicts, authorized reviewer role to be defined). Open for the runtime candidate: Enlace authentication/delegation, reviewer role and channel, human-resolver authorization in the cloud, station-to-former-center sync path, cloud transport binding. |
+| Audit | Decide durable/central audit access, deletion, recovery ownership and delivery. |
+| `sourceId` | Define its remaining semantic relationship to station identity. |
+| PKI issuance | Produce production issuance proof for the resolved URI-SAN identity schema. |
+| Dinamizador keys | Prove protected physical certificate/key provisioning. |
+| Trust/delegation | Define trust-bootstrap and delegation distribution. |
+| B1c composition | CLOSED: B1c1a2 and B1c1b are integrated on master, and the exception-path hardening of B1c1b (fail-closed catch plus tests, issue #27, PR #28 in `Admin-AIP/sistema-infoplazas-dinamizador`, merge commit `7a7382c`) was merged on 2026-11-20; wiring the composition to the gateway belongs to B1c2 activation work. |
+| Production limits | Choose approved production values for `maxConnections`, `maxPayload` and `pingIntervalMs`; test values are not defaults. |
+| Local audit sink | Implement and prove the production durable local `SecurityAuditSink`, separately from central audit governance. |
+| Integration | Perform a fresh integrated-code inspection and prepare a bounded candidate. |
+
+No existing B1c artifact authorizes activation.
