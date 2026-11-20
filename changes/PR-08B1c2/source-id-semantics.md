@@ -10,9 +10,19 @@ Status: ACCEPTED by the maintainer on 2026-11-21; documentation only. Authorizes
 for exact equality for every role. No document said what it identifies, who assigns it, its format or what happens to it
 on reimage and center change.
 
+## Terms
+
+* Sending program (programa emisor): the program that opens the secure link to the Dinamizador and sends its messages
+  (hello, requests, information, answers). On a Usuario PC it is the Usuario PC agent, the single program installed on
+  that PC for this purpose; on the Dinamizador it is the Dinamizador program itself.
+* It is not the person who uses the PC, not the machine hardware, and not each internal process, thread or window of the
+  program: however many internal parts a program has, they share one sending program and one `sourceId`.
+* A second program on the same PC that opened its own link to the Dinamizador would be a second sending program; that is
+  the case in which this decision must be revisited.
+
 ## Decision
 
-`sourceId` identifies the program that sends the messages, and it is derived, never typed or invented by a peer:
+`sourceId` identifies the sending program, and it is derived, never typed or invented by a peer:
 
 | Endpoint | `sourceId` | Assigned |
 | --- | --- | --- |
