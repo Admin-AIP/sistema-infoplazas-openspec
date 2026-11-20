@@ -141,7 +141,7 @@ by this documentation-only umbrella.
 | PKI issuance | Produce production issuance proof for the resolved URI-SAN identity schema. |
 | Dinamizador keys | Prove protected physical certificate/key provisioning. |
 | Trust/delegation | Define trust-bootstrap and delegation distribution. |
-| B1c composition | B1c1a2 and B1c1b are integrated on master; an exception-path hardening of B1c1b (fail-closed catch plus tests, issue #27, PR #28 in `Admin-AIP/sistema-infoplazas-dinamizador`) is pending merge; wiring the composition to the gateway belongs to B1c2 activation work. This row closes when PR #28 is merged. |
+| B1c composition | CLOSED: B1c1a2 and B1c1b are integrated on master, and the exception-path hardening of B1c1b (fail-closed catch plus tests, issue #27, PR #28 in `Admin-AIP/sistema-infoplazas-dinamizador`, merge commit `7a7382c`) was merged on 2026-11-20; wiring the composition to the gateway belongs to B1c2 activation work. |
 | Production limits | Choose approved production values for `maxConnections`, `maxPayload` and `pingIntervalMs`; test values are not defaults. |
 | Local audit sink | Implement and prove the production durable local `SecurityAuditSink`, separately from central audit governance. |
 | Integration | Perform a fresh integrated-code inspection and prepare a bounded candidate. |
