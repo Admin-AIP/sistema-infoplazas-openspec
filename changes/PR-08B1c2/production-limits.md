@@ -20,8 +20,8 @@ The WSS gateway of the Dinamizador (`apps/desktop/electron/security/transport/tl
 
 | Parameter | Default | Permitted range | Reason |
 | --- | --- | --- | --- |
-| Automatic enrollment ceiling (authorized station quota, cupo) | 10 | 1 to 64 | Stations enroll by themselves up to this number; it covers almost every center without configuration. |
-| `maxConnections` | 2 x the authorized station count, never below 8 (20 by default) | 8 to 128 | Room for a station that reconnects while its previous connection is still being closed. |
+| Automatic enrollment ceiling (authorized station quota, cupo) | 12 | 1 to 64 | Stations enroll by themselves up to this number; it covers almost every center without configuration. |
+| `maxConnections` | 2 x the authorized station count, never below 8 (24 by default) | 8 to 128 | Room for a station that reconnects while its previous connection is still being closed. |
 | `maxPayload` | 65 536 bytes (64 KiB) | 16 KiB to 1 MiB | Messages are short; the limit bounds the damage of an oversized frame. |
 | `pingIntervalMs` | 15 000 ms | 5 000 to 60 000 ms | Detects a dead peer in 15 to 30 s without cutting a busy PC by mistake. |
 
@@ -31,7 +31,7 @@ The WSS gateway of the Dinamizador (`apps/desktop/electron/security/transport/tl
   no approval is needed.
 * Every automatic enrollment produces a notice in the Dinamizador, shown to whoever is logged in there at that moment
   (the Operador del Centro or the Enlace), and a synchronizable audit entry. The notice says how many stations are
-  enrolled out of the ceiling (for example "7 of 10").
+  enrolled out of the ceiling (for example "7 of 12").
 * If nobody is logged in, the notice stays pending and is shown at the next login; it is cleared only when the person
   logged in acknowledges it. The audit entry exists in any case.
 * When the ceiling is reached, the person logged in is told that the center is at its limit. A station that appears
@@ -41,11 +41,11 @@ The WSS gateway of the Dinamizador (`apps/desktop/electron/security/transport/tl
 
 ## Who may change what
 
-* More than 10 stations: the ceiling default stays 10. An authenticated Enlace or Operador del Centro may authorize
+* More than 12 stations: the ceiling default stays 12. An authenticated Enlace or Operador del Centro may authorize
   additional stations, one by one, through the existing explicit approval of an over-quota enrollment of the
   secure-link specification; each approval raises the authorized station count of that center and `maxConnections`
   follows it. Every approval is audited.
-* Changing the automatic enrollment ceiling itself (for example from 10 to 12) is done only by the Enlace, in the
+* Changing the automatic enrollment ceiling itself (for example from 12 to 16) is done only by the Enlace, in the
   Dinamizador, within the permitted range. The Operador del Centro cannot change it but may still approve extra
   stations one by one. The change applies at once to new enrollments, without restarting the gateway or dropping the
   stations that are connected, and `maxConnections` is recomputed from the new count.
