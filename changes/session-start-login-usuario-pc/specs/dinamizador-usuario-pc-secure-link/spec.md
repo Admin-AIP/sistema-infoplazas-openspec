@@ -44,8 +44,8 @@ STARTED**; B1a2b resource hardening sigue ausente.
 B1b ya aporta la cadena de autorización de instalación/centro/deny y el esquema
 URI-SAN v1 está resuelto. B1c (composición, FSM, `ACTIVE` y acciones de producto)
 sigue PLANNED / NOT STARTED. Sus dependencias independientes pendientes son
-`sourceId`, prueba de emisión PKI de producción para URI-SAN, provisión protegida
-del certificado/clave Dinamizador y bootstrap/distribución de trust/delegación;
+`sourceId`, prueba de emisión PKI de producción para URI-SAN y provisión protegida
+del certificado/clave Dinamizador;
 no existe un gate separado de plausibilidad de reloj.
 
 `SecurityAuditSink` local durable sigue siendo un requisito arquitectónico
@@ -102,8 +102,9 @@ limpia, sin identidad previa, dentro del cupo de inventario autorizado del
 centro. Cada alta MUST dejar aviso local y auditoría sincronizable. Una estación
 con identidad de otro centro, cupo excedido o señal de sospecha MUST requerir
 aprobación explícita de un Operador autenticado del Dinamizador destino o de un
-Enlace autenticado con alcance vigente sobre ese centro. El mecanismo de
-autenticación y delegación del Enlace: por definir. La identidad anterior se
+Enlace autenticado con alcance vigente sobre ese centro. El Enlace se
+autentica con una cuenta en la nube y sus acciones requieren conexión
+(`changes/PR-08B1c2/trust-delegation.md`). La identidad anterior se
 revoca y conserva para auditoría, nunca se borra. Una
 reimagen conserva el `stationId` de inventario cuando el registro local la
 correlaciona de forma autorizada, pero siempre genera clave, CSR y credencial de
@@ -209,8 +210,10 @@ fabricante, serie o hardware MAY servir para agrupar, detectar clonación
 accidental o correlacionar un inventario; MUST NOT sustituir certificado, CSR,
 clave ni binding de centro como prueba de identidad. Inactividad MUST generar
 aviso y MUST NOT retirar una identidad automáticamente. La delegación MUST NOT
-autorizar identidad Dinamizador, otro centro ni acciones de producto. Bootstrap
-de trust y la forma de distribución de la delegación permanecen OPEN.
+autorizar identidad Dinamizador, otro centro ni acciones de producto. El bootstrap
+de trust y la distribución de la delegación están decididos en
+`changes/PR-08B1c2/trust-delegation.md`: la raíz viaja en el instalador firmado y
+la delegación es un documento firmado por la CA, sin vencimiento y revocable.
 
 La raíz/CA pública y los intermediates aprobados MUST fijarse localmente para
 confianza runtime offline; system trust por sí solo es insuficiente. La CA
