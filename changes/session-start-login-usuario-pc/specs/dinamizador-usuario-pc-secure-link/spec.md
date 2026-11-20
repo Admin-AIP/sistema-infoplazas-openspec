@@ -19,8 +19,9 @@ El estado autoritativo de Dinamizador es `master == origin/master` en
 `6a51a1409ee52368d938b0eaead5bfcce479d63c`.
 
 PR-08B1 está **IN PROGRESS**. B1a1, solo primitivas temporales, está CLOSED en
-`de6669ad2e511ec8fd51e5db6a29fdcf1583e944`; plausibilidad de reloj permanece
-OPEN. B1a2a1f está CLOSED/INTEGRATED/PUSHED en
+`de6669ad2e511ec8fd51e5db6a29fdcf1583e944`; la política de reloj queda
+resuelta: el reloj del OS valida X.509 y no existe gate adicional de
+plausibilidad/rollback. B1a2a1f está CLOSED/INTEGRATED/PUSHED en
 `22f509c88412bba53d39361dc7aa78aee1806f47` y contiene solo fixtures TEST-ONLY,
 sin secretos de producción, clave privada firmante de CA, claim de
 runtime/seguridad ni acciones de producto. B1a2a1 está CLOSED/INTEGRATED/PUSHED
@@ -40,12 +41,12 @@ el rechazo server-side de sockets reanudados de Policy A y lifecycle seguro del
 gateway. B1a2b está **PREFLIGHT COMPLETE / READY FOR IMPLEMENTATION / NOT
 STARTED**; B1a2b resource hardening sigue ausente.
 
-También siguen ausentes B1b (identidad de negocio X.509 y autorización de
-instalación/centro) y B1c (composición, FSM, `ACTIVE` y acciones de producto).
-B1b está PLANNED / BLOCKED por la codificación OPEN de identidad de negocio
-X.509; no se inventa mapping CN/O/OU/SAN/custom extension. B1c está PLANNED /
-NOT STARTED. Permanecen OPEN la codificación de identidad X.509, la provisión
-física del certificado/clave de servidor y la plausibilidad de reloj.
+B1b ya aporta la cadena de autorización de instalación/centro/deny y el esquema
+URI-SAN v1 está resuelto. B1c (composición, FSM, `ACTIVE` y acciones de producto)
+sigue PLANNED / NOT STARTED. Sus dependencias independientes pendientes son
+`sourceId`, prueba de emisión PKI de producción para URI-SAN, provisión protegida
+del certificado/clave Dinamizador y bootstrap/distribución de trust/delegación;
+no existe un gate separado de plausibilidad de reloj.
 
 `SecurityAuditSink` local durable sigue siendo un requisito arquitectónico
 **NORMATIVE**, pero aún no se ha demostrado un sink durable de producción en
@@ -66,7 +67,7 @@ MUST estar deshabilitado.
 #### Scenario: Conexión mTLS satisfactoria
 
 - GIVEN una estación y un Dinamizador con certificados vigentes y localmente confiables
-- AND ambos poseen registros de instalación autorizados para el mismo centro
+- AND el SQLite local de Dinamizador autoriza la instalación Usuario PC para el mismo centro
 - WHEN Usuario PC establece TLS 1.3 mutuo y completa el upgrade WSS
 - THEN el vínculo MUST entrar en `AUTHENTICATED_NEGOTIATING`
 - AND MUST NOT estar todavía en `ACTIVE` hasta validar registro, centro y negociación
@@ -86,6 +87,32 @@ Dinamizador MUST usar identidades/certificados únicos, nunca compartidos entre
 instalaciones, estaciones o centros. Una identidad confiable MUST exigir
 certificado válido, registro de instalación autorizado y binding exacto al
 centro. La identidad humana del operador MUST permanecer separada.
+
+**Roles:** Dinamizador denomina al programa. **Operador del Centro** (abreviado
+**Operador**) denomina a la persona que opera la Infoplaza o centro y usa el
+Dinamizador; toda aparición de «operador» en esta especificación se refiere al
+Operador del Centro. **Enlace** denomina al rol humano que instala los programas
+y tiene mayor alcance y privilegios que el Operador: todo lo que el Operador
+puede autorizar también lo puede autorizar el Enlace, nunca con menor alcance.
+
+El Dinamizador MAY actuar como **controlador local de enrolamiento** de
+estaciones Usuario PC exclusivamente para su `center_id`, cuando disponga de una
+delegación institucional vigente. La alta automática se limita a una imagen
+limpia, sin identidad previa, dentro del cupo de inventario autorizado del
+centro. Cada alta MUST dejar aviso local y auditoría sincronizable. Una estación
+con identidad de otro centro, cupo excedido o señal de sospecha MUST requerir
+aprobación explícita de un Operador autenticado del Dinamizador destino o de un
+Enlace autenticado con alcance vigente sobre ese centro. El mecanismo de
+autenticación y delegación del Enlace: por definir. La identidad anterior se
+revoca y conserva para auditoría, nunca se borra. Una
+reimagen conserva el `stationId` de inventario cuando el registro local la
+correlaciona de forma autorizada, pero siempre genera clave, CSR y credencial de
+seguridad nuevos.
+
+La delegación no convierte al Dinamizador en CA, no le permite emitir
+certificados por sí mismo, ni crear identidades Dinamizador, autoridad para otro
+centro o acciones de producto. La emisión final requiere el flujo institucional
+automático online para el CSR exacto.
 
 `station_id`, `center_id`, `source_id` y `link_id` del sobre MUST permanecer
 claims hasta comprobarlos contra certificado, registro autorizado y binding de
@@ -110,6 +137,33 @@ fingerprint o serial de credencial activa/cutover. La semántica de `sourceId`
 permanece OPEN; ningún claim de red puede seleccionar, reparar o normalizar un
 registro. Deny por instalación o credencial MUST evaluarse antes de allow y
 prevalece sobre cualquier overlap de cutover.
+
+**Fuente local elegida:** el SQLite local de Dinamizador es la fuente de
+autorización y deny del centro durante aislamiento. La tabla de
+autorización/deny MUST contener sólo `installationId`, `stationId`, `centerId`,
+`sourceId`, rol, estado allow/deny, fingerprint o serial de credencial, versión
+y marca de actualización; MUST NOT contener claves privadas, payloads de negocio
+ni datos de usuarios. La tabla de cola MAY contener sólo `operationId`,
+referencia de registro, versión de autorización bajo la cual Dinamizador creó el
+registro (`created_under_version`), payload mínimo de sincronización, estado de
+entrega, contador de reintento y razón de cuarentena; MUST NOT contener claves
+privadas. La tabla de auditoría se limita a su allowlist normativo, que MAY incluir
+la hora de detección de una cuarentena y la última versión de autorización
+conocida, sin payload de negocio. Las actualizaciones recibidas por el
+flujo online normal MUST aplicarse atómicamente. Usuario PC no mantiene una
+segunda fuente autoritativa: Dinamizador aplica este SQLite al validar el
+vínculo.
+
+**Store local aprobado:** Dinamizador MUST usar un único SQLite local con tablas
+separadas para autorización/deny, cola de sincronización y auditoría local. Las
+claves privadas X.509 MUST permanecer fuera de SQLite, en CNG/Certificate Store
+de Windows, no exportables cuando la plataforma lo soporte. El SQLite y las
+claves MUST quedar accesibles sólo a `NT SERVICE\InfoplazaSecureLink`; las ACL
+MUST denegar acceso a cuentas estudiantiles compartidas. SQLite MUST actualizar
+cada cambio de autorización, deny, cola o auditoría en una transacción atómica.
+El diseño protege contra usuarios ordinarios, errores y copias accidentales;
+MUST NOT afirmar protección contra un administrador local con control total de
+Windows.
 
 #### Scenario: Identidad y centro coinciden
 
@@ -139,18 +193,24 @@ prevalece sobre cualquier overlap de cutover.
 ### Requirement: Enrolamiento y almacenamiento protegido
 
 Cada endpoint MUST generar su clave privada localmente y usar CSR. La emisión
-MUST requerir autorización mediante flujo online o paquete offline firmado. El
-CSR y certificado emitido MUST tener binding exacto de SPKI; un certificado cuyo
-SPKI no coincide con el CSR vigente MUST rechazarse aunque cadena y URI SAN sean
-válidos. Todo paquete offline MUST incluir al menos schema/version, package ID,
-installationId objetivo, hash SPKI del CSR, nonce actual del CSR,
-emisión/expiración, cadena de certificado, versión de registry/snapshot y
-identidad del firmante. Debe verificarse firma, trust root explícita, target,
-SPKI, nonce, vigencia, schema y high-water mark monotónico antes de aplicar el
-paquete. Un paquete usado, stale, reemplazado, mismatched o replayed MUST fallar
-cerrado sin cambiar credencial, registry ni high-water mark. La autoridad de
-enrolamiento, bootstrap de trust, custodia del firmante offline y distribución
-operativa permanecen OPEN.
+MUST requerir conectividad y autorización mediante el flujo online normal; no
+existe paquete offline firmado. El CSR y certificado emitido MUST tener binding
+exacto de SPKI; un certificado cuyo SPKI no coincide con el CSR vigente MUST
+rechazarse aunque cadena y URI SAN sean válidos. La aceptación local de enrolamiento queda definida: Dinamizador recibe una
+delegación institucional limitada a su `center_id`, a estaciones Usuario PC y a
+un cupo/configuración operacional explícitos. Con una delegación vigente, MUST
+aceptar automáticamente un CSR nuevo sin identidad previa sólo dentro del cupo,
+MUST avisar y auditar cada alta, y MUST crear el registro local antes de
+solicitar la emisión institucional. Fuera de esas condiciones, un Operador
+del Centro autenticado, o un Enlace autenticado con alcance vigente sobre ese centro, MUST confirmar la alta o reasignación; el control de
+autorización MUST ser efectivo, no meramente un botón oculto. Un cambio de
+centro revoca, pero no borra, la identidad de origen. Los atributos de modelo,
+fabricante, serie o hardware MAY servir para agrupar, detectar clonación
+accidental o correlacionar un inventario; MUST NOT sustituir certificado, CSR,
+clave ni binding de centro como prueba de identidad. Inactividad MUST generar
+aviso y MUST NOT retirar una identidad automáticamente. La delegación MUST NOT
+autorizar identidad Dinamizador, otro centro ni acciones de producto. Bootstrap
+de trust y la forma de distribución de la delegación permanecen OPEN.
 
 La raíz/CA pública y los intermediates aprobados MUST fijarse localmente para
 confianza runtime offline; system trust por sí solo es insuficiente. La CA
@@ -161,22 +221,66 @@ TLS revocation y business deny son controles independientes; cualquiera deniega.
 Durante aislamiento se impone el último registry/deny local confiable y no se
 promete revocación global inmediata.
 
-En Windows, las claves privadas MUST usar almacenamiento protegido y ACL
-restrictiva. La selección final del adaptador CNG/Certificate Store/DPAPI
-permanece bloqueada hasta que un spike bajo identidad dedicada
-`NT SERVICE\InfoplazaSecureLink` demuestre no exportación, ausencia de copia o
-texto plano, uso exclusivo por esa identidad y denegación a procesos de la
-cuenta estudiantil compartida. Esta especificación no selecciona adaptador ni
-autoriza despliegue de servicio.
+En Windows, las claves privadas MUST usar CNG/Certificate Store y ACL
+restrictiva; SQLite MUST NOT conservarlas. El proveedor e integración concretos
+permanecen sujetos a un spike bajo identidad dedicada
+`NT SERVICE\InfoplazaSecureLink` que demuestre no exportación cuando la
+plataforma lo soporte, ausencia de copia o texto plano, uso exclusivo por esa
+identidad y denegación a procesos de la cuenta estudiantil compartida. Esta
+especificación selecciona el límite CNG/Certificate Store, no autoriza el
+spike ni el despliegue de servicio.
 
-#### Scenario: Provisionamiento offline autorizado
+#### Scenario: Enrolamiento automático dentro del cupo del centro
 
-- GIVEN una instalación sin acceso a Internet
-- AND un paquete de provisionamiento firmado por la autoridad autorizada
-- WHEN la instalación presenta su CSR y aplica el paquete válido
-- THEN MUST instalar solo su certificado y trust público local
-- AND la clave firmante de CA MUST permanecer fuera del endpoint
-- AND la clave privada de instalación MUST permanecer en el dispositivo
+- GIVEN una estación Usuario PC restaurada desde una imagen limpia con software instalado
+- AND la estación generó una clave y CSR nuevos, sin identidad clonada
+- AND Dinamizador posee una delegación institucional vigente para su propio centro
+- AND el cupo de inventario autorizado del centro no está agotado
+- WHEN la estación se descubre en la LAN del centro
+- THEN Dinamizador MUST aceptar el enrolamiento sin aprobación humana por PC
+- AND MUST avisar y auditar la alta
+- AND MUST registrar el binding de centro antes de solicitar la emisión institucional
+- AND MUST NOT aceptar la estación como `ACTIVE` hasta que posea una credencial emitida y verificable
+
+#### Scenario: Reasignación o alta excepcional requiere operador
+
+- GIVEN una estación que presenta identidad de otro centro, supera el cupo o tiene una señal de sospecha
+- WHEN aparece ante Dinamizador
+- THEN MUST avisar al Operador autenticado del Dinamizador destino
+- AND MUST NOT aceptar ni revocar la identidad por sí sola
+- WHEN el Operador confirma la operación, o un Enlace autenticado con alcance vigente sobre ese centro la confirma
+- THEN MUST revocar y conservar para auditoría la identidad anterior antes de enrolar la nueva
+
+#### Scenario: Imagen clonada con identidad previa
+
+- GIVEN una estación restaurada conserva identidad, certificado o registro de otra instalación
+- WHEN Dinamizador observa un binding, certificado o hardware operacional incompatible
+- THEN MUST impedir que la copia conserve la identidad anterior
+- AND MUST iniciar un enrolamiento con clave y CSR nuevos o dejarla pendiente
+- AND MUST NOT reparar, copiar ni reutilizar la clave o credencial anterior
+
+#### Scenario: Cambio confirmado de centro vacía SQLite local
+
+- GIVEN una estación Usuario PC con una SQLite local perteneciente a otro `center_id`
+- AND un Operador autenticado del Dinamizador destino, bajo su delegación institucional vigente, o un Enlace autenticado con alcance vigente sobre ese centro confirma que la estación se unirá a su propio centro
+- WHEN la estación acepta el cambio de centro
+- THEN, antes de vaciar o reemplazar su SQLite local, MUST intentar sincronizar con el centro anterior los registros pendientes no enviados si hay conectividad con ese centro, reutilizando las reglas de reconciliación de `operationId` inmutable, aceptación única y ausencia de duplicados
+- AND si no hay conectividad con el centro anterior o la sincronización falla, MUST avisar claramente a quien autoriza, Operador o Enlace, el número de registros pendientes no enviados y MUST requerir su confirmación explícita antes de perderlos
+- AND MUST registrar en auditoría esa confirmación y el número de registros, sin payload
+- AND MUST vaciar o reemplazar por una base nueva toda su SQLite local antes de registrar datos del centro receptor
+- AND MUST generar una identidad, clave y CSR nuevos para el centro receptor
+- AND MUST revocar, sin borrar, la identidad anterior
+- AND esos registros pendientes MUST NOT copiarse, importarse ni hacerse disponibles al centro receptor bajo ninguna circunstancia
+- AND MUST NOT copiar, sincronizar, importar ni hacer disponible al centro receptor ningún dato de la base anterior
+- AND MUST NOT alterar datos centrales ni el registro remoto del centro anterior como efecto de vaciar la base local
+- AND descubrimiento de red, hostname o modelo de hardware por sí solos MUST NOT confirmar el cambio de centro
+
+#### Scenario: Enrolamiento requiere conectividad
+
+- GIVEN una instalación sin acceso a Internet y sin credencial X.509 emitida
+- WHEN presenta un CSR nuevo
+- THEN MUST permanecer sin enrolar hasta recuperar conectividad
+- AND MUST NOT aceptar paquetes offline de provisionamiento
 
 #### Scenario: Adaptador de storage no demuestra no exportación
 
@@ -188,15 +292,16 @@ autoriza despliegue de servicio.
 ### Requirement: Operación runtime completamente offline
 
 La autenticación runtime MUST funcionar sin Internet ni NTP cuando ambos peers
-tengan credenciales locales no expiradas, raíz pública local confiable, registros
-de autorización y estado local conocido. La nube MUST NOT participar en cada
+tengan credenciales locales no expiradas, raíz pública local confiable, el SQLite
+de autorización/deny de Dinamizador y estado local conocido. La nube MUST NOT participar en cada
 conexión.
 
 #### Scenario: LAN disponible sin Internet
 
 - GIVEN estación y Dinamizador aislados de Internet
 - AND sus certificados están vigentes según el reloj OS local confiable
-- AND los registros locales los autorizan para el mismo centro
+- AND el SQLite local de Dinamizador autoriza la estación para el mismo centro
+- AND el intento obligatorio de auditoría de esa decisión fue `RECORDED`
 - WHEN establecen mTLS y completan la negociación
 - THEN MUST poder alcanzar `ACTIVE`
 - AND MUST NOT requerir consulta central online
@@ -296,9 +401,10 @@ La frase «RFC3339/RFC3339Nano-compatible» no es un criterio operativo suficien
 - La zona horaria MUST estar presente y ser `Z` mayúscula o un offset firmado `+HH:MM`/`-HH:MM`, con hora `00`–`23` y minuto `00`–`59`. Deben aceptarse `Z`, `+00:00`, `-05:00`, `+05:30` y `+23:59`; MUST rechazar offsets malformados y `-00:00`, que no se acepta como la convención RFC3339 de offset local desconocido. Solo `T` y `Z` mayúsculas son válidas; `t` y `z` minúsculas MUST rechazarse.
 - Después de validar, la implementación MUST preservar exactamente la cadena original aceptada. MUST NOT convertirla a `Z`, cambiar fracciones, eliminar ceros finales, cambiar mayúsculas, reparar fecha/offset ni sustituirla por una reserialización de `Date`.
 
-Este requisito cierra solo formato, calendario y zona horaria. **Clock Plausibility**
-permanece OPEN y separado; B1c1a1 MUST NOT implementarlo. Sigue bloqueando la
-aceptación final posterior capaz de activar y el estado `ACTIVE`.
+Este requisito cierra solo formato, calendario y zona horaria. `sent_at`
+permanece observacional; no existe un gate adicional de Clock Plausibility. La
+validación del reloj del OS para X.509 sigue siendo independiente y obligatoria
+antes de `ACTIVE`.
 
 #### Scenario: Formas estrictas aceptadas y preservadas
 
@@ -510,33 +616,50 @@ se emitió `link_id`, cada frame post-ACTIVE MUST coincidir. El FIFO PR-07 por
 `sent_at` MUST permanecer obligatorio y observacional para auditoría; MUST NOT
 ser la defensa primaria de replay ni el reloj de certificado. X.509
 `notBefore/notAfter` MUST validarse con reloj de pared del OS local y MUST NOT
-depender de Internet/NTP. Una conexión MUST cerrarse no después de `notAfter`
-del certificado peer.
+depender de Internet/NTP. El fallo de validación temporal MUST impedir una nueva
+transición a `ACTIVE`; MUST NOT omitir validación temporal. Una
+conexión MUST cerrarse no después de `notAfter` del certificado peer. La
+arquitectura MUST registrar que protección absoluta contra rollback del reloj es
+imposible totalmente offline sin tiempo confiable.
 
-Por cada binding exacto `(installationId, certificateFingerprint256)`, el
-endpoint conserva evidencia local protegida con dos valores independientes:
-`highestAcceptedWallClockMs`, high-water mark monotónico contra rollback, y
-`trustedTimeProofIssuedAtMs`, fecha de emisión de una prueba temporal firmada y
-validada. Actividad ordinaria, `link.accept` y el avance del high-water MUST
-NOT renovar `trustedTimeProofIssuedAtMs`; el high-water MUST NOT reducirse.
+**Política local simplificada:** no existe una autoridad institucional de tiempo,
+evidencia de tiempo firmada, actualización periódica, paquete offline de
+recuperación ni high-water mark firmado. La única firma es la firma de código
+del instalador institucional, que prueba origen e integridad del software; no
+prueba el tiempo ni la pertenencia al centro.
 
-Antes de una futura autorización, `currentWallClockMs + 300000 <
-highestAcceptedWallClockMs` MUST impedir una nueva transición a `ACTIVE`. Una
-tolerancia menor o igual a 300000 ms MUST NOT reducir el high-water. La
-persistencia atómica de un high-water no decreciente MUST completarse antes de
-emitir un futuro `link.accept`.
+Dinamizador y Usuario PC MUST operar dentro del centro conocido con credenciales
+X.509 vigentes, raíz pública confiable, registro local de autorización y deny
+local. La continuidad local no tiene límite de tiempo por falta de Internet.
+La validación X.509 usa el reloj del OS y MUST seguir aplicándose. El sistema no
+reclama protección contra rollback del reloj durante aislamiento; si el reloj no
+permite validar X.509, MUST impedir `ACTIVE`.
 
-El umbral de 30 días para `currentWallClockMs - trustedTimeProofIssuedAtMs` es
-CANDIDATO NO OPERATIVO: autoridad, firma, vigencia, distribución, replay y
-recuperación extraordinaria de la prueba permanecen OPEN. No es garantía de
-tiempo seguro offline ni protección absoluta contra rollback. La ausencia de
-Internet por sí sola MUST NOT rechazar una autorización cuando la evidencia
-local aprobada sea válida. Corrupción, binding inválido, evidencia no
-provisionada o fallo de persistencia MUST fallar cerrado. Una discrepancia de
-reloj MUST NOT por sí sola cerrar aplicaciones o finalizar sesiones estudiantiles
-ni cerrar retroactivamente un enlace ya `ACTIVE`; los cierres de seguridad ya
-exigidos, incluida expiración X.509, permanecen vigentes. Esta política no
-autoriza `link.accept`, `ACTIVE`, handlers ni acciones de producto.
+Un vínculo local MAY crear o reconectar dentro del mismo centro durante
+aislamiento. MUST NOT enrolar, reemplazar, cambiar de centro ni sincronizar
+cloud hasta recuperar conectividad. La revocación de credencial peer, deny local
+y decisiones de negocio conocidas localmente mantienen su invalidación inmediata.
+Un reemplazo o reinstalación de Dinamizador requiere conectividad para completar
+el flujo normal de autorización del centro; no hay paquete de recuperación
+offline.
+
+La auditoría MUST usar un buffer local protegido y rotativo de treinta días,
+sin exportación manual desde el endpoint, y sincronizarse oportunísticamente con
+la nube. La reconciliación MUST actualizar primero autorización/deny de nube en una
+transacción SQLite y luego revalidar la cola. Cada registro MUST tener un
+`operationId` inmutable; la nube MUST confirmar aceptación única o recepción
+previa, y Dinamizador MUST marcar entrega sólo después de esa confirmación. Los
+reintentos ante fallo transitorio o parcial MUST evitar duplicados. Un conflicto,
+o un registro local sin `created_under_version` válida, MUST ponerse en cuarentena sin borrarlo ni subirlo silenciosamente. Un
+registro creado bajo una versión de autorización que autorizaba a su actor MUST
+NOT ponerse en cuarentena sólo por una revocación o cambio de centro posterior:
+la nube MUST aceptarlo al comparar versiones de autorización, nunca por reloj
+local ni tiempo firmado, y MUST marcarlo para auditoría. Las excepciones en
+cuarentena requieren revisión de un revisor autorizado cuyo rol y canal están
+por definir; el Enlace MUST NOT ser el revisor predeterminado. El contrato
+detallado de reconciliación está en
+`changes/PR-08B1c2/reconciliation-wire-contract.md` (ACCEPTED). Ninguna
+cola se sincroniza por inferencia.
 
 #### Scenario: Certificado expira durante conexión
 
@@ -545,12 +668,16 @@ autoriza `link.accept`, `ACTIVE`, handlers ni acciones de producto.
 - THEN el sistema MUST cerrar la conexión no después de ese instante
 - AND MUST exigir credencial vigente para reconectar
 
-#### Scenario: Reloj local implausible
+#### Scenario: Continuidad local durante aislamiento
 
-- GIVEN que el endpoint no puede confiar razonablemente en su reloj OS local
-- WHEN intenta validar `notBefore/notAfter` para una conexión nueva
-- THEN MUST impedir `ACTIVE`
-- AND MUST NOT ignorar la vigencia por estar offline
+- GIVEN Dinamizador y estación del mismo centro con certificados X.509 vigentes,
+  registro local autorizado y sin deny local
+- WHEN no hay conectividad a Internet
+- THEN MAY crear o reconectar un vínculo local y conservar registros en cola
+- AND MUST NOT enrolar, reemplazar, cambiar de centro ni sincronizar cloud
+- WHEN vuelve la conectividad
+- THEN MUST aplicar el contrato de reconciliación antes de sincronizar los
+  registros locales pendientes
 
 ### Requirement: Guardia privilegiada y cero acciones de producto
 
@@ -593,9 +720,10 @@ persiste o `UNAVAILABLE` cuando el sink no está disponible.
 | `LINK_LIFECYCLE` | `PEER_REPLACED` |
 | `PRIVILEGE_ELIGIBILITY` | `OUT_OF_SCOPE` |
 
-`REJECTED` MUST llevar un código canónico de rechazo; `INVALIDATED` actualmente
-MUST llevar `PEER_REPLACED`; `SUCCESS` y `FAILED` MUST NOT llevar código de
-rechazo. Las combinaciones contradictorias están prohibidas. `UNAVAILABLE` MUST
+`REJECTED` MUST llevar un código canónico de rechazo; `INVALIDATED`
+actualmente MUST llevar `PEER_REPLACED`; `SUCCESS` y `FAILED` MUST NOT llevar
+código de rechazo. Las combinaciones contradictorias están prohibidas.
+`UNAVAILABLE` MUST
 NOT conceder privilegio ni transformar un rechazo en aceptación; un vínculo
 técnicamente autenticado MAY permanecer no privilegiado.
 
@@ -604,8 +732,9 @@ clave pública innecesario, PIN, verificadores, frames crudos, payload completo,
 payload opaco de negocio, PII sensible ni datos de discapacidad. Fallar al
 auditar MUST NOT conceder privilegio. Si auditoría obligatoria no está
 disponible, elegibilidad privilegiada MUST permanecer falsa; el vínculo MAY
-seguir técnicamente autenticado para operación no privilegiada. Retención,
-acceso y exportación permanecen política de negocio separada.
+seguir técnicamente autenticado para operación no privilegiada. El acceso, eliminación y recuperación central de auditoría permanecen política
+de negocio separada; la retención local de treinta días y la ausencia de
+exportación manual desde el endpoint ya están decididas.
 
 #### Scenario: Fallo del sink obligatorio
 
