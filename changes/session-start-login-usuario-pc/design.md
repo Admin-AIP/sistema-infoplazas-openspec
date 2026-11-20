@@ -114,7 +114,7 @@ Todos los identificadores técnicos serán UUID/IDs internos estables. Los nombr
 
 Son agregados y contratos separados, con namespaces, repositorios e interfaces incompatibles por tipo; ningún adaptador puede convertir uno en otro:
 
-- **PermanentPinCredential:** `credential_id`, `user_id`, verificador/hash no reversible, salt/parámetros/versión de algoritmo, versión, estado y timestamps. Es la única credencial usada por la autenticación ordinaria. El backend deriva el verificador con función resistente a fuerza bruta y salt único; la proyección local se protege además con DPAPI o abstracción equivalente. Nunca se conserva el PIN personal reversible.
+- **PermanentPinCredential:** `credential_id`, `user_id`, verificador/hash no reversible, salt/parámetros/versión de algoritmo, versión, estado y timestamps. Es la única credencial usada por la autenticación ordinaria. El backend deriva el verificador con función resistente a fuerza bruta y salt único; la proyección local se protege además con DPAPI o abstracción equivalente. Nunca se conserva el PIN personal reversible. Esta protección de verificador de usuario no es almacenamiento de clave privada X.509.
 - **TemporaryEmailPinCredential:** credencial independiente de exactamente cuatro dígitos y propósito `EMAIL_RECOVERY`, con `temporary_credential_id`, `user_id`, representación protegida para validación, `issued_at`, `expires_at`, estado y versión de emisión. La plataforma central futura genera y entrega el PIN temporal al correo registrado; Usuario PC y Dinamizador solo consumen el contrato. Tiene vigencia limitada, una sola finalización satisfactoria y la nueva emisión invalida toda temporal activa anterior del mismo usuario/propósito. No sustituye al verificador permanente ni persiste en texto plano.
 - **ResetAuthorizationGrant:** autorización opaca para reemplazar la credencial permanente; no es PIN ni credencial de login. Contiene o referencia `grant_id`, modo, `user_id`, `request_id`, `center_id`, `station_id` cuando aplique, emisión/expiración, nonce o versión anti-replay y estado. Es de un uso y queda inválida por consumo satisfactorio, rechazo, expiración, cancelación o reemplazo. Su valor/secreto no se expone al renderer ni se persiste en auditoría.
 - **AttemptControl:** contadores/ventanas/bloqueos asociados a IDs internos y estación. Máximo, ventana y duración provienen de política, sin constantes de negocio.
@@ -164,7 +164,7 @@ SQLite es la opción mínima que satisface simultáneamente relaciones, filtros 
 - Una migración versionada y transaccional crea/actualiza el esquema; no se depende de la versión implícita de `config.json`.
 - Se habilitan foreign keys y WAL. La configuración de sincronización debe priorizar confirmación durable para la transacción crítica de sesión; no se considerará commit una escritura aún no confirmada por SQLite.
 - Un servicio de persistencia serializa las escrituras críticas y expone interfaces (`UserRepository`, `CredentialRepository`, `SessionRepository`, `CatalogRepository`, `AuditRepository`, `OutboxRepository`) para pruebas.
-- La clave local usada para proteger campos/verifiers se guarda mediante DPAPI, reutilizando la abstracción existente de protección, no en el mismo archivo SQLite en claro.
+- La clave local usada para proteger campos/verifiers de Usuario PC se guarda mediante DPAPI, reutilizando la abstracción existente de protección, no en el mismo archivo SQLite en claro. No es una alternativa para claves privadas X.509, que usan CNG/Certificate Store.
 - Al arrancar: abrir/migrar DB, recuperar primero sesión y pendientes, validar identidad/configuración según la clase de política, resolver el temporizador y solo entonces seleccionar FSM. Una sesión activa recuperable continúa con su último estado/configuración válidos; un error de DB o núcleo ambiguo que impida demostrar esa sesión mantiene la estación bloqueada y registra la razón, sin inventar otra sesión.
 - Una sesión activa recuperable restaura widget/temporizador desde timestamps y checkpoints durables. La ausencia de configuración nueva no interrumpe esa continuidad; solo una incoherencia del núcleo que no permita reconstruirla requiere contención y conciliación.
 
@@ -232,7 +232,9 @@ Todos los identificadores del sobre —`message_id`, `correlation_id`, `idempote
 - La zona horaria es obligatoria: `Z` mayúscula o offset numérico firmado `+HH:MM`/`-HH:MM`, con hora `00`–`23` y minuto `00`–`59`. Se aceptan `Z`, `+00:00`, `-05:00`, `+05:30` y `+23:59`; se rechazan offsets malformados y `-00:00`, que no se acepta como la convención RFC3339 de offset local desconocido. Solo se aceptan `T` y `Z` mayúsculas; `t` y `z` minúsculas se rechazan.
 - El validador conserva la cadena original aceptada exactamente. No convierte a `Z`, cambia fracciones, elimina ceros finales, cambia mayúsculas, repara fecha/offset ni sustituye mediante reserialización de `Date`.
 
-Este perfil cierra solamente formato/calendario/zona horaria. **Clock Plausibility** permanece OPEN y separado: B1c1a1 no lo implementa, y sigue bloqueando la aceptación final posterior capaz de activar y el estado `ACTIVE`.
+Este perfil cierra solamente formato/calendario/zona horaria. Clock
+Plausibility está supersedida: el reloj del OS valida X.509 antes de `ACTIVE` y
+no existe un gate adicional de plausibilidad, drift o rollback.
 
 Los campos JSON desconocidos se toleran para compatibilidad futura, pero nunca alteran routing, clasificación o privilegios y no relajan la validación de campos conocidos. La política sobre claves JSON duplicadas queda explícitamente diferida: `encoding/json` no ofrece rechazo estricto automático y no existe requisito aprobado para incorporarlo en PR-07.
 
@@ -329,8 +331,8 @@ Los nueve bloqueadores técnicos originales están **CLOSED** en [`pr-08-blockin
 
 - El tráfico LAN privilegiado confiable usa exclusivamente WSS sobre TLS 1.3 con mTLS: Usuario PC cliente, Dinamizador servidor. No se permite WS en claro, contraseña global/compartida ni handshake criptográfico custom.
 - Una CA privada controlada por Infoplazas emite una identidad/certificado único por instalación. La clave firmante de CA nunca reside en endpoints.
-- La clave de endpoint se genera en dispositivo y se enrola por CSR mediante emisión online autorizada o paquete offline firmado (vinculado a CSR/nonce exacto y estado monotónico). La raíz pública se fija localmente y runtime opera sin Internet con credencial no expirada y estado local conocido.
-- Claves privadas usan storage Windows protegido y ACL restrictiva. Un spike seleccionará Certificate Store/CNG o DPAPI protegido; DPAPI solo pasa si demuestra que no hay texto plano, exportación o copia y que la clave nunca sale de la instalación. El diseño no selecciona adaptador antes del spike.
+- La clave de endpoint se genera en dispositivo y se enrola por CSR mediante emisión online autorizada; no existe paquete offline firmado. La raíz pública se fija localmente y runtime opera sin Internet con credencial no expirada y estado local conocido.
+- Claves privadas usan Windows CNG/Certificate Store y ACL restrictiva; SQLite no conserva claves privadas. El spike demuestra que no hay texto plano, exportación o copia y que la clave nunca sale de la instalación bajo la identidad de servicio. El proveedor e integración concretos siguen sujetos al spike.
 
 #### Identidad y ciclo de vida
 
@@ -375,7 +377,7 @@ Fallo TLS se audita localmente —`AUTH_REQUIRED`, `CERT_INVALID`, `CERT_EXPIRED
 
 Dinamizador genera por conexión exitosa un `connection_epoch` criptográficamente aleatorio, no cero, `uint64`, no persistido/reutilizado. Handshake carece de secuencia. Post-ACTIVE, cada dirección usa secuencia `uint64` desde `1` y acepta solo `+1`; duplicado/menor es replay, gap mayor audita+cierra+reautentica, reconnect reinicia bajo época nueva y se cierra antes de overflow. `link_id`, si existe, debe coincidir. El FIFO PR-07 por `message_id` permanece dedupe de transporte separado.
 
-`sent_at` es observacional. X.509 usa reloj OS local sin Internet/NTP; reloj implausible impide nuevo ACTIVE y la conexión cierra no después de `notAfter`. Rollback absoluto de reloj no puede impedirse offline sin tiempo confiable y se registra como limitación.
+`sent_at` es observacional. X.509 usa reloj OS local sin Internet/NTP; un fallo de validación temporal impide nuevo ACTIVE y la conexión cierra no después de `notAfter`. Rollback absoluto de reloj no puede impedirse offline sin tiempo confiable y se registra como limitación.
 
 #### Auditoría y guard privilegiado
 
@@ -683,7 +685,7 @@ Con gateway de prueba, dos procesos/servicios y DBs temporales:
 | Unicidad global durante aislamiento de varias estaciones | Invariante futuro acotado: los duplicados offline no se convierten silenciosamente en identidades independientes; se registran hechos locales y posteriormente se concilian o se marcan conflictos cuando corresponda. Este cambio no diseña el comportamiento de conciliación. |
 | Nueva SQLite en Usuario PC aumenta superficie operativa | Base única embebida, repositorios pequeños, migraciones, backup/recuperación y driver validado para Windows. |
 | Dos cronómetros y dos interpretaciones de sesión | Sesión durable única; ambos timers son proyecciones y todos los orígenes usan el mismo servicio/ID. |
-| Credenciales, discapacidad y PII en estaciones públicas | Proyección mínima, token de búsqueda, DPAPI, paquetes opacos, ACL, redacción, no exposición pública de discapacidad y canal seguro. |
+| Credenciales, discapacidad y PII en estaciones públicas | Proyección mínima, token de búsqueda, DPAPI para verificadores/PII de Usuario PC, paquetes opacos, ACL, redacción, no exposición pública de discapacidad y canal seguro. DPAPI no almacena claves privadas X.509. |
 | Esquema actual y sync no son atómicos para sesiones | Migración aditiva; núcleo de sesión + `SyncIntent` atómicos, con fact/outbox/auditoría recuperables e idempotentes fuera de la barrera. |
 | Política aún sin valores exactos | Documento versionado, clasificación por criticidad y fallback localizado; ninguna constante fija de negocio. |
 

@@ -1,8 +1,9 @@
 # PR-08B1b2b2 Claim Binding + Final Authorization Design
 
-## Status: NOT STARTED
+## Status: COMPLETE / INTEGRATED
 
-This document authorizes architecture and planning only. PR-08B1b2b2 implementation has not started.
+Historical design record. PR-08B1b2b2 is integrated; current status is
+maintained in `status.md`.
 
 ## Decision
 
@@ -229,13 +230,11 @@ For the new PR-08 secure-link path, `promoteStationIdentity()` and `TrustedStati
 | `registryVersion` | Registry-derived |
 | Network claims | Non-authoritative comparison inputs only |
 
-## Clock Plausibility
+## Clock policy
 
-Clock plausibility remains **OPEN**.
-
-It does not block B1b2b2 claim authorization or production of `AuthorizedPeerIdentity`.
-
-It continues to block `ACTIVE` and production acceptance later in B1c2. B1b2b2 MUST NOT solve, infer, or bypass clock plausibility.
+Clock Plausibility is superseded. B1b2b2 does not implement an additional
+trusted-clock or rollback rule. OS-clock X.509 `notBefore`/`notAfter` validation
+remains required before `ACTIVE`, and its failure prevents activation.
 
 ## Required Verification Coverage
 
@@ -318,11 +317,14 @@ Before or during implementation, if scope or test-design changes make the projec
 - Claims remain non-authoritative.
 - Final identity construction cannot leak `serialNumber`.
 - Legacy promotion cannot bypass the new PR-08 authorization path.
-- Clock plausibility remains a later `ACTIVE`/production gate.
+- OS-clock X.509 temporal validation remains required before `ACTIVE`; no
+  separate clock-plausibility gate exists.
 - Product actions remain ZERO.
 
 ## Next Slice
 
 ### B1c2 — ACTIVE / Production Acceptance
 
-B1c2 may consume the successful B1b2b2 authorization result only after its own prerequisites, including clock plausibility, are satisfied. It remains outside PR-08B1b2b2.
+B1c2 may consume the successful B1b2b2 authorization result only after its
+current local-state, protected-store, reconciliation, audit and PKI prerequisites
+are satisfied. It remains outside PR-08B1b2b2.

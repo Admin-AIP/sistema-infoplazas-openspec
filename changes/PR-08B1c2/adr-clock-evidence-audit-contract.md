@@ -1,6 +1,8 @@
 # ADR: CLOCK_EVIDENCE audit contract
 
-## Status: PROPOSED — institutional approval required
+## Status: SUPERSEDED by the simplified local policy (see design.md in this folder)
+
+This direction was replaced by local SQLite authorization with CNG/Certificate Store protection.
 
 This ADR proposes the minimum local audit contract that a future B1c2a3a
 implementation could use for Clock Evidence decisions. It changes no normative

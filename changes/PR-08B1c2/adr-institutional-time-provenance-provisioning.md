@@ -1,6 +1,8 @@
 # ADR: Institutional signed-time provenance and relay direction
 
-## Status: POLICY DIRECTION SELECTED — institutional approvals pending
+## Status: SUPERSEDED by the simplified local policy (see design.md in this folder)
+
+This direction was replaced by local SQLite authorization with CNG/Certificate Store protection.
 
 ## Decision
 
